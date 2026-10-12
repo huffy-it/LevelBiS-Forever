@@ -1319,11 +1319,16 @@ local function detailReason(slotName, best, filters)
     local detail = S.Explain(best.item, ns.weights, S.SLOTS[slotName].slot)
     local reason = "Por qué: mayor puntaje con tus pesos"
     for _, part in ipairs(detail and detail.parts or {}) do
-        if part.points > 0 then
+        -- The stats of the ideal gems are not the item's own: they are named
+        -- apart below, so "destaca" never credits the item with a gem's stat.
+        if part.points > 0 and part.origin ~= "socket" then
             local label = ns.StatLabel and ns.StatLabel(part.key) or part.key
             reason = reason .. ("; destaca %s (%+.0f puntos)"):format(label, part.points)
             break
         end
+    end
+    if detail and (detail.socketPoints or 0) >= 0.5 then
+        reason = reason .. (" · gemas ideales %+.0f"):format(detail.socketPoints)
     end
     local item = best.item
     if item.sg or item.pg then

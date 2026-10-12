@@ -26,6 +26,9 @@ local function LoadDB()
         ns.property = LevelBiS_Property or {}
         ns.propertyGroup = LevelBiS_PropertyGroup or {}
         ns.set = LevelBiS_Set or {}
+        -- Gems for the ideal-socket value (Scoring.lua "Sockets"). Without
+        -- them the sockets are simply worth nothing, as before they existed.
+        ns.gems = LevelBiS_Gem or {}
         ns.consumables = LevelBiS_Consumables or {}
     end)
     if not ok then
@@ -979,12 +982,19 @@ function Cmd.explain(arg)
     local detail = S.Explain(item, ns.weights, def.slot, slotName == "offhand")
     Print(("%s: |cff40ff40%.2f puntos|r"):format(ItemLink(id, item), detail.total))
     for _, part in ipairs(detail.parts) do
-        local origin = part.origin == "suffix" and "sufijo" or "base"
+        local origin = part.origin == "suffix" and "sufijo"
+                       or part.origin == "socket" and "ranuras" or "base"
         local label = ns.StatLabel and ns.StatLabel(part.key) or part.key
         Print(("  %s (%s): %g × %g = |cffffd100%.2f|r"):format(
             label, origin, part.value, part.weight, part.points))
     end
     if detail.suffix then Print("  tirada elegida: |cffffd100" .. detail.suffix .. "|r") end
+    if detail.socket then
+        -- The stats of the ideal gems are listed above (origin "ranuras");
+        -- this line says what they were chosen for and what they add.
+        Print(("  Ranuras (%s): |cffffd100%+.1f|r"):format(
+            S.SocketSummary(detail.socket, item), detail.socketPoints))
+    end
     if detail.weaponAbility then
         Print(("  ajuste estimado por %s: %+.2f puntos"):format(
             detail.weaponAbility, detail.weaponPoints))

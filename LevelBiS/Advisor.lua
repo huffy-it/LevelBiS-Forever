@@ -314,11 +314,17 @@ function ns.ReasonLine(link)
     local main
     if item then
         local detail = S.Explain(item, ns.weights, S.SLOTS[ev.slot].slot)
+        local mainPoints = 0
         for _, part in ipairs(detail and detail.parts or {}) do
-            if part.points > 0 then
+            -- A gem's stat is not the item's: the sockets are named as one.
+            if part.points > 0 and part.origin ~= "socket" then
                 main = ns.StatLabel and ns.StatLabel(part.key) or part.key
+                mainPoints = part.points
                 break
             end
+        end
+        if detail and (detail.socketPoints or 0) > mainPoints then
+            main = "sus ranuras con gemas ideales"
         end
     end
     local head = ev.empty and ("Llena una ranura vacía: " .. slotWord(ev.slot))

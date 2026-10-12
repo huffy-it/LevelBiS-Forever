@@ -9,7 +9,7 @@ equipo conseguir mientras subes del nivel 1 al 70.
 - Funciona sin internet y sin listas BiS hechas a mano: puntúa cada objeto con
   los pesos de estadísticas de tu especialización.
 
-Versión actual: `0.18.0-look`.
+Versión actual: `0.19.0-sockets`.
 
 ---
 
@@ -168,7 +168,14 @@ trinket1 trinket2 back mainhand offhand ranged`.
 
 - **El puntaje no es DPS.** Es la suma de estadísticas según los pesos de tu
   especialización. Sirve para comparar objetos, no para simular combate.
-- **Gemas y encantamientos no cuentan**, ni en lo que llevas ni en lo recomendado.
+- **Las gemas y los encantamientos que ya llevas puestos no cuentan**, ni en lo que
+  llevas ni en lo recomendado. **Las ranuras sí:** un objeto de nivel de objeto 100
+  o más se valora como si llevara en cada ranura la mejor gema para tus pesos (y el
+  bono de ranuras, cuando compensa), igual que hace Pawn, y lo mismo vale para lo
+  que llevas puesto. A partir de nivel de objeto 151 se usan gemas épicas; por
+  debajo, raras. Las gemas meta cuentan solo por su atributo, no por su efecto
+  especial. Es una suposición: no sabe qué gemas tienes ni cuáles puedes pagar.
+  `/lbis explain <id>` muestra esa parte en una línea aparte («Ranuras»).
 - **Los efectos especiales** (procs y efectos al usar) se describen, pero no se
   puntúan: no hay forma fiable de darles un número.
 - **Las probabilidades de botín** vienen de cmangos y son aproximadas.

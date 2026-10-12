@@ -84,9 +84,13 @@ W.SPEC_LIST = {
 --
 -- The values below are transcribed, not adjusted for levelling. Four kinds of entry in the source do not
 -- survive the trip, because the addon has no such stat to weigh: armour
--- penetration, flat health and mana, health per five, resistances, and gem
--- sockets. Gems and enchants are deliberately excluded from both sides of an
--- item comparison. Nothing else was changed, and no number was rounded.
+-- penetration, flat health and mana, health per five and resistances. Gems
+-- and enchants you have already put in are deliberately excluded from both
+-- sides of an item comparison. Sockets are not: since 0.19.0-sockets the
+-- engine prices every socket of an item with item level 100 or more with the
+-- best gem for these weights, on both sides, as Pawn does (Scoring.lua,
+-- "Sockets"); the weights themselves are untouched. Nothing else was changed,
+-- and no number was rounded.
 --
 -- Pawn gives caster wand DPS a weight of zero. LevelBiS still lists statless
 -- wands by their own DPS when the ranged slot has no positive weighted result,

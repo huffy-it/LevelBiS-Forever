@@ -1,7 +1,7 @@
 ## Interface: 20506
 ## Title: LevelBiS
 ## Notes: Best-in-slot leveling recommendations (1-70) ranked by spec stat weights
-## Version: 0.18.0-look
+## Version: 0.19.0-sockets
 ## SavedVariables: LevelBiSDB
 ## SavedVariablesPerCharacter: LevelBiSCharDB
 ## X-Category: Leveling
@@ -15,6 +15,7 @@ Weights.lua
 Scoring.lua
 Access.lua
 Data\random.lua
+Data\gems.lua
 Data\sets.lua
 Data\items_01_20.lua
 Data\items_21_40.lua

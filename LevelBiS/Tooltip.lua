@@ -60,7 +60,7 @@ function ns.MarkFor(link)
     if not live then return nil end
     local hasStat = false
     for _ in pairs(live.st) do hasStat = true break end
-    if not hasStat then return nil end
+    if not (hasStat or live.sk) then return nil end
     local effLevel = math.min(70, math.max(tl or 0, live.req or 0))
     if not S.CanUse(live, ns.playerClass, effLevel) then return nil end
     if not S.Recommendable(live, ns.playerClass, effLevel) then return nil end

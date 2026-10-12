@@ -481,7 +481,10 @@ end
 ------------------------------------------------------------------------------
 S._cache = {}         -- [profileHash][itemID] = score
 S._variantCache = {}  -- [profileHash][itemID] = { bonus, suffix name, stats }
+S._socketCache = {}   -- [profileHash][itemID] = S.SocketInfo result, or false
+S._gemCache = {}      -- [profileHash] = S.GemTable result (best gems per color)
 local curHash, curCache, variantCache   -- variantCache: [itemID] = { bonus, suffix, stats }
+local socketCache                       -- [itemID] = socket info, for the active profile
 
 -- "Score only what is guaranteed": the roll of a random-suffix item is left
 -- out entirely, so a piece whose base carries no stats -- which is most of
@@ -495,7 +498,7 @@ function S.SetIgnoreRandom(value)
     if value ~= ignoreRandom then
         ignoreRandom = value
         -- The scores cached under the old setting are not the scores now.
-        curHash, curCache, variantCache = nil, nil, nil
+        curHash, curCache, variantCache, socketCache = nil, nil, nil, nil
     end
 end
 
@@ -515,13 +518,16 @@ function S.UseProfile(weights)
     if not curCache then curCache = {}; S._cache[curHash] = curCache end
     variantCache = S._variantCache[curHash]
     if not variantCache then variantCache = {}; S._variantCache[curHash] = variantCache end
+    socketCache = S._socketCache[curHash]
+    if not socketCache then socketCache = {}; S._socketCache[curHash] = socketCache end
     S._activeWeights = weights
 end
 
 -- Drop every cached score (all profiles). Called when the DB is replaced.
 function S.ForgetScores()
     S._cache, S._variantCache = {}, {}
-    curCache, variantCache, curHash = nil, nil, nil
+    S._socketCache, S._gemCache = {}, {}
+    curCache, variantCache, socketCache, curHash = nil, nil, nil, nil
     S.ClearLifetimeCache()
 end
 
@@ -529,8 +535,10 @@ function S.InvalidateProfile(weights)
     local hash = hashWeights(weights)
     S._cache[hash] = nil
     S._variantCache[hash] = nil
+    S._socketCache[hash] = nil
+    S._gemCache[hash] = nil
     if weights == S._activeWeights then
-        curCache, variantCache, curHash = nil, nil, nil
+        curCache, variantCache, socketCache, curHash = nil, nil, nil, nil
     end
 end
 
@@ -659,6 +667,210 @@ function S.VariantName(item, weights)
     return name
 end
 
+------------------------------------------------------------------------------
+-- Sockets
+------------------------------------------------------------------------------
+-- Real gems and enchants count on neither side of a comparison (see
+-- S.UnmodifiedLink), but the sockets themselves do: a piece with two sockets
+-- is worth more than the same piece without them, and ignoring that made the
+-- addon call a 46-point item an upgrade over Sha'tari Wrought Greaves, whose
+-- two sockets and bonus are worth another 17 points to a Fury warrior.
+--
+-- Every socket is priced with the best gem for the ACTIVE WEIGHTS, on both the
+-- recommended and the equipped side, as Pawn does when "ignore sockets on
+-- low-level items" is on:
+--
+--   * only on an item with item level >= SOCKET_MIN_ILVL. Below it the gems a
+--     player puts in are not worth the cost of the socket, and Pawn leaves
+--     them out too. It is the item level, not the player's level.
+--   * the gem tier follows the item: item level >= SOCKET_EPIC_ILVL (Black
+--     Temple and later, where players use epic cuts) prices with the best of
+--     all rare and epic gems; anything below with the best rare gem. Sunwell
+--     gems carry no phase evidence (they come from vendors and crafts that
+--     name no instance), so none is held back by S.CURRENT_PHASE.
+--   * for a colored socket, either the best gem of that color, summed over the
+--     sockets and added to the value of the socket bonus (the "proper" way:
+--     every gem matches and the bonus is active), or the best gem of any color
+--     in every socket with no bonus (the "mismatched" way); whichever is worth
+--     more. A gem satisfies a socket when its color mask includes the socket's
+--     bit, so an orange gem fills red and yellow.
+--   * a meta socket takes the best meta gem on its own. Only the plain stat of
+--     a meta gem is priced; its special effect and its activation
+--     requirement are not.
+--
+-- Everything is a function of the item and the weights, so it is cached per
+-- weights hash next to the other score caches (UseProfile, InvalidateProfile
+-- and ForgetScores handle it) and sits inside the cached part of S.Score.
+--
+-- Other paths, decided one by one:
+--   * S.LevelScaleAdjustment and S.HitCapAdjustment add the ratings of the
+--     ideal gems and bonus to those of the item, so a rating is scaled and
+--     capped the same whether it comes from the item or from its sockets.
+--   * S.StatsValue prices consumables, not gear; sockets do not apply.
+--   * S.WeaponAdjustment is about swing speed and damage; sockets do not apply.
+--   * The detail's stat changes (UI detailStats) list the item's own stats on
+--     purpose: the ideal gems are a hypothesis, not a stat the item has.
+S.SOCKET_MIN_ILVL = 100
+S.SOCKET_EPIC_ILVL = 151
+
+local SOCKET_META = 1
+local SOCKET_ANY = 14  -- prismatic socket, and "a gem of any color"
+local SOCKET_CODES = { 2, 4, 8, SOCKET_ANY }
+local SOCKET_COLOR_WORD = {  -- for the explain line, feminine plural
+    [2] = "rojas", [4] = "amarillas", [8] = "azules", [14] = "de cualquier color",
+}
+
+local GEM_TIER_MAX = { rare = 3, epic = 4 }  -- highest gem quality of each tier
+
+local function betterGem(cur, value, id)
+    return not cur or value > cur.value or (value == cur.value and id < cur.id)
+end
+
+-- Best gem per socket code and tier for `weights`:
+--   { rare = { [2]=gem, [4]=gem, [8]=gem, [14]=gem }, epic = { ... }, meta = gem }
+-- where gem = { value, st, id, n }. A missing entry means no gem of that kind
+-- is worth anything with these weights. The epic tier also accepts rare gems:
+-- nothing stops you putting one in an item that deserves better, and it keeps
+-- a stat that has no epic cut (a purple dodge gem) from falling out. Ties go
+-- to the lower item id so the result never depends on table order.
+local function buildGemTable(weights)
+    local gems = { rare = {}, epic = {} }
+    for id, gem in pairs(ns.gems or {}) do
+        local value = weighted(gem.st, weights)
+        if value > 0 then
+            local entry = { value = value, st = gem.st, id = id, n = gem.n }
+            if gem.c == SOCKET_META then
+                if betterGem(gems.meta, value, id) then gems.meta = entry end
+            else
+                for tier, maxQuality in pairs(GEM_TIER_MAX) do
+                    if (gem.q or 3) <= maxQuality then
+                        for _, code in ipairs(SOCKET_CODES) do
+                            if code == SOCKET_ANY or hasBit(gem.c, code) then
+                                if betterGem(gems[tier][code], value, id) then
+                                    gems[tier][code] = entry
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return gems
+end
+
+function S.GemTable(weights)
+    weights = weights or S._activeWeights
+    if not weights then return { rare = {}, epic = {} } end
+    local cacheable = curHash and weights == S._activeWeights
+    if cacheable and S._gemCache[curHash] then return S._gemCache[curHash] end
+    local gems = buildGemTable(weights)
+    if cacheable then S._gemCache[curHash] = gems end
+    return gems
+end
+
+-- What the sockets of an item add for `weights`, or nil when they add nothing
+-- (no sockets, item level below the cut-off, or no gem worth anything):
+--   value   points added to the score
+--   stats   the stats of the chosen gems and, if used, the socket bonus
+--   mode    "proper" (gems match the sockets, bonus active) or "mismatched"
+--   tier    "rare" or "epic"
+--   colored, metas   how many sockets of each kind
+--   bonus   value of the socket bonus (only when mode is "proper")
+--   picks   the chosen gems, one per socket
+function S.SocketInfo(item, weights)
+    local sockets = item and item.sk
+    weights = weights or S._activeWeights
+    if not (sockets and weights and (item.ilvl or 0) >= S.SOCKET_MIN_ILVL) then
+        return nil
+    end
+    local cacheable = socketCache and item.id and not item._live
+                      and weights == S._activeWeights
+    if cacheable then
+        local c = socketCache[item.id]
+        if c ~= nil then return c or nil end
+    end
+
+    local gems = S.GemTable(weights)
+    local tierName = item.ilvl >= S.SOCKET_EPIC_ILVL and "epic" or "rare"
+    local tier = gems[tierName]
+    local colored, metas, properValue = 0, 0, 0
+    for _, code in ipairs(sockets) do
+        if code == SOCKET_META then
+            metas = metas + 1
+        else
+            colored = colored + 1
+            local gem = tier[code]
+            if gem then properValue = properValue + gem.value end
+        end
+    end
+    local bonus = (colored > 0 and item.sb) and weighted(item.sb, weights) or 0
+    properValue = properValue + bonus
+    local any = tier[SOCKET_ANY]
+    local mismatchedValue = colored * (any and any.value or 0)
+
+    local stats, picks, value, mode = {}, {}, 0, nil
+    local function take(gem, times)
+        for k, v in pairs(gem.st) do stats[k] = (stats[k] or 0) + v * times end
+        for _ = 1, times do picks[#picks + 1] = gem end
+    end
+    if colored > 0 then
+        if properValue >= mismatchedValue then
+            mode, value = "proper", properValue
+            for _, code in ipairs(sockets) do
+                if code ~= SOCKET_META and tier[code] then take(tier[code], 1) end
+            end
+            if item.sb then
+                for k, v in pairs(item.sb) do stats[k] = (stats[k] or 0) + v end
+            end
+        elseif any then
+            mode, value, bonus = "mismatched", mismatchedValue, 0
+            take(any, colored)
+        end
+    end
+    if metas > 0 and gems.meta then
+        value = value + metas * gems.meta.value
+        take(gems.meta, metas)
+    end
+
+    local info
+    if value > 0 then
+        info = { value = value, stats = stats, mode = mode, tier = tierName,
+                 colored = colored, metas = metas, bonus = bonus, picks = picks }
+    end
+    if cacheable then socketCache[item.id] = info or false end
+    return info
+end
+
+function S.SocketValue(item, weights)
+    local info = S.SocketInfo(item, weights)
+    return info and info.value or 0
+end
+
+-- "gemas azules ideales", "gema meta ideal"...: what the explain line says the
+-- sockets were priced with.
+function S.SocketSummary(info, item)
+    if not info then return nil end
+    local parts = {}
+    if info.colored > 0 then
+        if info.mode == "proper" then
+            local seen, words = {}, {}
+            for _, code in ipairs(item.sk) do
+                if code ~= SOCKET_META and not seen[code] then
+                    seen[code] = true
+                    words[#words + 1] = SOCKET_COLOR_WORD[code] or "de otro color"
+                end
+            end
+            parts[#parts + 1] = "gemas " .. table.concat(words, " y ") .. " ideales"
+                                .. (info.bonus ~= 0 and ", con bono de ranuras" or "")
+        else
+            parts[#parts + 1] = "la mejor gema de cualquier color en cada ranura, sin bono"
+        end
+    end
+    if info.metas > 0 then parts[#parts + 1] = "gema meta ideal" end
+    return table.concat(parts, "; ")
+end
+
 -- An off-hand swing deals half the weapon's damage in TBC, so a weapon's `dps`
 -- is worth half as much there as it is in the main hand. Without this the
 -- comparison below added two full weapons together and dual wielding won every
@@ -727,6 +939,11 @@ function S.Score(item, weights, slotID)
         if item.sg or item.pg then
             total = total + (S.BestVariant(item, weights))
         end
+        -- The ideal-gem value of the sockets depends on the item and the
+        -- weights only, so it belongs in this cached part. Recommended and
+        -- equipped items both come through here (EquippedScore reads the
+        -- same DB entry), which is what keeps the two sides symmetric.
+        if item.sk then total = total + S.SocketValue(item, weights) end
         if cacheable then curCache[item.id] = total end
     end
     -- Set value depends on the exact equipment slot being replaced. It cannot
@@ -854,6 +1071,11 @@ function S.LevelScaleAdjustment(item, weights, level)
         local _, _, variantStats = S.BestVariant(item, weights)
         add(variantStats)
     end
+    -- Ratings that come from the ideal gems and the socket bonus scale like the
+    -- ratings of the item itself; otherwise a socketed piece would be priced at
+    -- level 70 and everything else at the target level.
+    local socket = S.SocketInfo(item, weights)
+    if socket then add(socket.stats) end
     return (m - 1) * sum
 end
 
@@ -886,6 +1108,11 @@ end
 function S.HitCapAdjustment(item, weights, slotID, level)
     if not (item and weights and slotID and S.HitCapActive(level)) then return 0 end
     local total = 0
+    -- Hit from the ideal gems counts toward the cap like hit on the item. The
+    -- gems were chosen by weight alone, without knowing the cap, so a piece can
+    -- be credited a little more hit than fits; the cap trims exactly that.
+    local socket = S.SocketInfo(item, weights)
+    local socketStats = socket and socket.stats
     for key, cap in pairs(S.HIT_CAP) do
         local w = weights[key]
         local current = ns.hitRating[key]
@@ -895,6 +1122,7 @@ function S.HitCapAdjustment(item, weights, slotID, level)
                 local _, _, variantStats = S.BestVariant(item, weights)
                 gain = gain + (variantStats and variantStats[key] or 0)
             end
+            gain = gain + (socketStats and socketStats[key] or 0)
             if gain > 0 then
                 -- Golpe del resto del equipo: el actual sin lo que esta ranura
                 -- lleva puesto. Solo lo que cabe bajo el tope vale.
@@ -1879,17 +2107,40 @@ local NORM_MAP = {
     resilience_rating="resil", spell_penetration="spen",
 }
 
+-- GetItemStats reports an empty socket as EMPTY_SOCKET_<COLOR> = how many. Read
+-- from a link with its gems stripped (S.UnmodifiedLink), every socket is empty,
+-- so the keys count all of them. The client's own constant names are used
+-- as they are: none of them is localized.
+local SOCKET_KEY = {
+    EMPTY_SOCKET_META = 1, EMPTY_SOCKET_RED = 2, EMPTY_SOCKET_YELLOW = 4,
+    EMPTY_SOCKET_BLUE = 8, EMPTY_SOCKET_PRISMATIC = 14,
+}
+local SOCKET_KEY_ORDER = { 1, 2, 4, 8, 14 }
+
+-- Second return: the socket colors, as the pipeline writes them in `sk`, or nil.
 function S.LiveStats(link)
     if type(GetItemStats) ~= "function" then return nil end
     local t = GetItemStats(link)
     if not t then return nil end
-    local st = {}
+    local st, socketCount = {}, {}
     for k, v in pairs(t) do
-        local norm = tostring(k):gsub("^ITEM_MOD_", ""):gsub("_SHORT$", ""):lower()
-        local key = NORM_MAP[norm]
-        if key and v and v ~= 0 then st[key] = (st[key] or 0) + v end
+        local socket = SOCKET_KEY[tostring(k)]
+        if socket then
+            socketCount[socket] = (socketCount[socket] or 0) + (tonumber(v) or 0)
+        else
+            local norm = tostring(k):gsub("^ITEM_MOD_", ""):gsub("_SHORT$", ""):lower()
+            local key = NORM_MAP[norm]
+            if key and v and v ~= 0 then st[key] = (st[key] or 0) + v end
+        end
     end
-    return st
+    local sockets
+    for _, code in ipairs(SOCKET_KEY_ORDER) do
+        for _ = 1, socketCount[code] or 0 do
+            sockets = sockets or {}
+            sockets[#sockets + 1] = code
+        end
+    end
+    return st, sockets
 end
 
 -- A concrete roll of an item the data knows: the base stats plus the stats of
@@ -1941,7 +2192,7 @@ function S.LiveItem(link)
     if not equip or equip == "" or equip == "INVTYPE_NON_EQUIP" then
         return nil, "unpriceable"
     end
-    local st = S.LiveStats(link)
+    local st, sockets = S.LiveStats(link)
     if not st then return nil, "pending" end
     -- A concrete random roll must contribute a live stat. An empty table can
     -- arrive before the item cache is complete; scoring only intrinsic weapon
@@ -1956,11 +2207,20 @@ function S.LiveItem(link)
             if st[key] == nil then st[key] = base.st[key] end
         end
     end
-    return {
+    local item = {
         id = id, n = name, ilvl = ilvl, req = req or 0, slot = equip,
         ic = classID, sc = subID, q = q, bind = bind, st = st,
         _live = true,
     }
+    -- Sockets: the data's, with their bonus, when it knows the item (the same
+    -- answer the recommendation gets); otherwise the client's, which names the
+    -- colors but not the bonus.
+    if base then
+        item.sk, item.sb = base.sk, base.sb
+    else
+        item.sk = sockets
+    end
+    return item
 end
 
 -- EquippedScore returns score, itemID, item, isLive, state. The state is
@@ -2007,8 +2267,11 @@ end
 -- Remove enchant and gem fields while preserving the concrete random roll.
 -- GetItemStats reads the whole hyperlink; scoring the original link would make
 -- an equipped gem or enchant part of one side of the comparison even though
--- recommendations contain neither. Pawn's "ignore gems while levelling"
--- behaviour is therefore applied symmetrically here.
+-- recommendations contain neither. Real gems and enchants therefore count on
+-- neither side. What does count, on both, is the sockets: an item with item
+-- level 100 or more is priced with the ideal gem in each (S.SocketInfo), and
+-- the sockets are read from the data or, for an item outside it, from the
+-- EMPTY_SOCKET_* keys that GetItemStats returns for this stripped link.
 function S.UnmodifiedLink(link)
     local id = tonumber((link or ""):match("item:(%d+)"))
     if not id then return link end
@@ -2087,6 +2350,14 @@ function S.Explain(item, weights, slotID, offhand)
     addStats(item.st, "base")
     local _, suffix, variantStats = S.BestVariant(item, weights)
     addStats(variantStats, "suffix")
+    -- The stats of the ideal gems (and the socket bonus when it is used) are
+    -- parts like any other, so the parts still add up to the total.
+    local socket = S.SocketInfo(item, weights)
+    addStats(socket and socket.stats, "socket")
+    local socketPoints = 0
+    for _, part in ipairs(parts) do
+        if part.origin == "socket" then socketPoints = socketPoints + part.points end
+    end
     local setPoints = S.SetBonus(item, weights, slotID)
     table.sort(parts, function(a, b)
         local aa, bb = math.abs(a.points), math.abs(b.points)
@@ -2097,6 +2368,7 @@ function S.Explain(item, weights, slotID, offhand)
     local adjustment, ability = S.WeaponAdjustment(item, weights, slotID)
     local total = S.ScoreForSlot(item, weights, slotID)
     return { total = total, parts = parts, suffix = suffix,
+             socket = socket, socketPoints = socketPoints,
              setPoints = setPoints, slotID = slotID,
              weaponPoints=adjustment, weaponAbility=ability,
              hitCapPoints = S.HitCapAdjustment(item, weights, slotID),
