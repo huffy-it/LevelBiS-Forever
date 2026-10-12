@@ -1,0 +1,29 @@
+pipeline/inputs/
+tests/__pycache__/
+pipeline/__pycache__/
+tests/latest_results.txt
+tests/systemic_results.json
+
+# Local test runtime (lupa wheels); install with: python -m pip install lupa
+.test-deps/
+runtime_deps/
+
+# Old manual backup, superseded by git
+LevelBiS.rar
+
+# Third-party addons kept locally as reference only (not our code)
+Pawn/
+LevelingBiSAdvisor/
+PickItRight/
+
+# Working notes kept locally (status, history, plans); not published
+SPEC.md
+SPEC_MEJORAS.md
+
+# Development material kept locally; the repository publishes only the addon
+AGENTS.md
+CLAUDE.md
+AUDIT.md
+WEAPON_RULES.md
+pipeline/
+tests/

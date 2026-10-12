@@ -1,0 +1,30 @@
+## Interface: 20506
+## Title: LevelBiS
+## Notes: Best-in-slot leveling recommendations (1-70) ranked by spec stat weights
+## Version: 0.18.0-look
+## SavedVariables: LevelBiSDB
+## SavedVariablesPerCharacter: LevelBiSCharDB
+## X-Category: Leveling
+
+# NOTE: verify the client build in-game with:  /run print(select(4,GetBuildInfo()))
+# and set the number above accordingly (TBC Anniversary ~20506). If it shows as
+# "out of date", enable "Load out of date AddOns" in the character select screen.
+
+# Load order matters: shared constants (Weights) -> engine (Scoring) -> data -> bootstrap (Core).
+Weights.lua
+Scoring.lua
+Access.lua
+Data\random.lua
+Data\sets.lua
+Data\items_01_20.lua
+Data\items_21_40.lua
+Data\items_41_60.lua
+Data\items_61_70.lua
+Data\consumables.lua
+Core.lua
+UI.lua
+Profiles.lua
+Tooltip.lua
+Prices.lua
+Advisor.lua
+ProfSim.lua
