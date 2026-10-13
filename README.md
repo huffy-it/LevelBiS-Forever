@@ -1,194 +1,199 @@
 # LevelBiS
 
-Addon para **World of Warcraft TBC Anniversary (cliente 2.5.x)** que te dice qué
-equipo conseguir mientras subes del nivel 1 al 70.
+Addon for **World of Warcraft TBC Anniversary (2.5.x client)** that tells you
+which gear to get as you level from 1 to 70.
 
-- Mira lo que llevas puesto y, ranura por ranura, te propone algo mejor que
-  puedas equipar y conseguir.
-- Te dice **por dónde empezar**: la ranura donde más ganas.
-- Funciona sin internet y sin listas BiS hechas a mano: puntúa cada objeto con
-  los pesos de estadísticas de tu especialización.
+- It looks at what you have equipped and, slot by slot, suggests something
+  better that you can actually equip and obtain.
+- It tells you **where to start**: the slot where you gain the most.
+- It works offline and without hand-made BiS lists: it scores every item with
+  the stat weights of your spec.
 
-Versión actual: `0.19.0-sockets`.
+The interface is in English, and in Spanish on Spanish clients (esES/esMX).
 
----
-
-## Instalación
-
-1. Copia la carpeta `LevelBiS/` en `World of Warcraft/_classic_/Interface/AddOns/`.
-2. Entra al juego y escribe `/lbis` (o pulsa el botón del minimapa).
-
-Si el addon aparece como «desactualizado», activa «Cargar accesorios
-desactualizados» en la pantalla de selección de personaje.
+Current version: `0.20.0-i18n`.
 
 ---
 
-## Primeros pasos
+## Installation
 
-Abre la ventana con `/lbis`. Verás tus 17 ranuras de equipo en tres grupos
-(armadura, accesorios y armas):
+1. Copy the `LevelBiS/` folder into `World of Warcraft/_classic_/Interface/AddOns/`.
+2. Log in and type `/lbis` (or click the minimap button).
 
-| Columna | Qué significa |
+If the addon shows up as "out of date", enable "Load out of date AddOns" on the
+character selection screen.
+
+---
+
+## Getting started
+
+Open the window with `/lbis`. You will see your 17 equipment slots in three
+groups (armor, accessories and weapons):
+
+| Column | What it means |
 |---|---|
-| **Llevas** | Lo que tienes puesto y su puntaje. |
-| **Mejora disponible** | Barra gris: lo que ya tienes. Tramo turquesa: lo que ganarías. |
-| **Recomendado** | El mejor objeto que puedes conseguir, en el color de su calidad. A la derecha, de dónde sale (`Maz`, `Raid`, `Mis`, `Ven`, `Fab`, `PvP`, `Mun`) y cómo se liga (`BoP`, `BoE`, `BoU`). |
-| **Ganas** | Cuánto mejora esa ranura, en porcentaje. «al día» significa que ya llevas lo mejor. |
+| **Equipped** | What you are wearing and its score. |
+| **Upgrade available** | Gray bar: what you already have. Teal segment: what you would gain. |
+| **Recommended** | The best item you can get, in its quality color. On the right, where it comes from (`Dun`, `Raid`, `Qst`, `Vnd`, `Crf`, `PvP`, `Wld`) and how it binds (`BoP`, `BoE`, `BoU`). |
+| **Gain** | How much that slot improves, as a percentage. "up to date" means you already have the best. |
 
-La frase de arriba y la fila con borde turquesa («**Empieza aquí**») marcan la
-ranura que más puntos suma. Ojo: el porcentaje más alto no siempre es la mayor
-mejora, porque cada ranura parte de un puntaje distinto.
+The line at the top and the teal-bordered row (**Start here**) mark the slot
+that adds the most points. Note that the highest percentage is not always the
+biggest upgrade, because each slot starts from a different score.
 
-### Clics sobre un objeto recomendado
+### Clicking a recommended item
 
-- **Pasar el cursor:** muestra su tooltip.
-- **Clic:** abre el detalle de la fila (otro clic lo cierra).
-- **Shift-clic:** enlaza el objeto en el chat.
-- **Ctrl-clic:** lo prueba en el probador.
-- **Con la subasta abierta:** el clic lo busca en la subasta y Alt-clic abre el detalle.
+- **Hover:** shows its tooltip.
+- **Click:** opens the row's details (click again to close them).
+- **Shift-click:** links the item in chat.
+- **Ctrl-click:** tries it on in the dressing room.
+- **With the Auction House open:** click searches for it there, and Alt-click
+  opens the details.
 
-### El detalle
+### The details
 
-Al hacer clic en una fila verás:
+Click a row to see:
 
-- qué objeto sustituye y qué estadísticas ganas (turquesa) o pierdes (rojo);
-- de dónde sale y desde qué nivel puedes ir a buscarlo;
-- por qué puntúa así y hasta qué nivel te seguirá sirviendo;
-- el precio que viste en la subasta, si lo hay;
-- la **mejor alternativa sin tirada aleatoria** y cuánto pierdes eligiéndola, por
-  si no quieres perseguir un sufijo concreto («del Oso», «del Tigre»…).
-
----
-
-## Pestañas
-
-- **Equipo:** la lista de ranuras descrita arriba.
-- **Mazmorras:** «¿Qué mazmorra corro?». Te sugiere las mazmorras que más
-  mejoras te dan para tu nivel y tus filtros.
-- **Consumibles:** frasco o elixires, comida y pociones que más te convienen,
-  calculados con tus pesos.
+- which item it replaces and which stats you gain (teal) or lose (red);
+- where it comes from and from what level you can go get it;
+- why it scores that way and how long it will stay useful;
+- the price you saw on the Auction House, if any;
+- the **best alternative with no random roll** and how much you lose by picking
+  it, in case you don't want to chase a specific suffix ("of the Bear",
+  "of the Tiger"...).
 
 ---
 
-## Filtros
+## Tabs
 
-Pulsa **Mostrar filtros** para verlos. Debajo siempre aparece un resumen de lo
-que está activo, y **Restablecer filtros** vuelve a los valores iniciales.
+- **Gear:** the slot list described above.
+- **Dungeons:** "Which dungeon should I run?" It suggests the dungeons that give
+  you the most upgrades for your level and filters.
+- **Consumables:** the flask or elixirs, food and potions that suit you best,
+  calculated with your weights.
 
-**Casillas**
+---
 
-| Casilla | Al inicio | Qué hace |
+## Filters
+
+Click **Show filters** to see them. A summary of what is active always appears
+below, and **Reset filters** goes back to the defaults.
+
+**Checkboxes**
+
+| Checkbox | Default | What it does |
 |---|---|---|
-| Sin raid | Activada | Oculta lo que solo cae en raid. |
-| Instancias | Desactivada | Solo drops y vendedores de mazmorras o raids. |
-| Misiones | Desactivada | Solo recompensas de misión. Se puede combinar con Instancias. |
-| Mis profesiones | Activada | Oculta lo que pide una profesión que no tienes. |
-| Alcanzable | Activada | Solo lo que de verdad puedes conseguir: nivel suficiente, reputación suficiente, misiones que aún no hiciste y nada de eventos de temporada (Fiesta de la Cerveza, Halloween…). |
+| No raid | On | Hides what only drops in raids. |
+| Instances | Off | Only drops and vendors from dungeons or raids. |
+| Quests | Off | Only quest rewards. Can be combined with Instances. |
+| My professions | On | Hides what needs a profession you don't have. |
+| Reachable | On | Only what you can really get: high enough level, enough reputation, quests you haven't done yet, and no seasonal events (Brewfest, Hallow's End...). |
 
-**Botones** (cada clic pasa a la siguiente opción)
+**Buttons** (each click moves to the next option)
 
-| Botón | Opciones |
+| Button | Options |
 |---|---|
-| Tiradas | **mejor**: cuenta la mejor tirada posible de los objetos aleatorios · **ignorar**: solo cuenta lo garantizado · **excluir**: oculta los objetos aleatorios. |
-| Subasta | **incluir** · **excluir**: oculta lo que se compra en la subasta · **solo**: solo lo que se puede comprar. |
-| Orden | **ranura** · **mejora**: de mayor a menor ganancia, con una línea donde se junta el 70% de tu mejora · **oro**: lo que más rinde por moneda, según los precios que viste. |
+| Rolls | **Best**: counts the best possible roll of random items · **Ignore**: counts only what is guaranteed · **Exclude**: hides random items. |
+| Auction House | **Include** · **Exclude**: hides what can be bought on the Auction House · **Only**: only what can be bought. |
+| Order | **Slot** · **Upgrade**: from largest to smallest gain, with a line where 70% of your upgrade adds up · **Gold**: best return per coin, based on the prices you saw. |
 
-**Fila del nivel**
+**Level row**
 
-- `<` `>` y **Actual**: elige para qué nivel quieres la recomendación.
-- **Objetivo: leveling / nivel 70**: el modo nivel 70 incluye raids, heroicas y
-  la fase abierta. Al volver a «leveling» recuperas tus filtros.
-- **Mazmorras: todas / normales / heroicas**.
-- **Fase**: hasta qué fase del servidor se cuenta el contenido. Por defecto, la
-  fase actual.
-
----
-
-## Panel «Pesos»
-
-El botón **Pesos** (arriba a la derecha) abre el editor de pesos de tu
-especialización. Ahí puedes cambiar cuánto vale cada estadística, importar o
-exportar escalas de Pawn y volver al preajuste.
-
-También tiene cuatro ajustes:
-
-- **Pesos por nivel** (activado): los índices como golpe o crítico valen más a
-  niveles bajos; esta casilla lo tiene en cuenta.
-- **Tope de ilvl**: oculta objetos con un nivel muy por encima de lo habitual.
-- **Tope de golpe (70)**: a nivel 70 no valora el golpe que pasa del tope.
-- **Avisos de bolsas**: te avisa en el chat si algo de tus bolsas mejora una
-  ranura (solo con la ventana abierta).
+- `<` `>` and **Current**: pick the level you want the recommendation for.
+- **Goal: leveling / level 70**: level 70 mode includes raids, heroics and the
+  open phase. When you go back to "leveling" your filters come back.
+- **Dungeons: all / normal / heroic**.
+- **Phase**: up to which server phase content counts. By default, the current
+  phase.
 
 ---
 
-## Mientras juegas
+## Weights panel
 
-- **Misiones:** al aceptar o entregar una misión con varias recompensas, el chat
-  te dice cuál elegir. Si ninguna te mejora, te sugiere la que más se vende.
-- **Botín de grupo:** al tirar por un objeto te dice si te conviene Necesidad o
-  Codicia.
-- **Subir de nivel:** el chat te avisa de las mejoras que se abren.
-- **Tooltips:** cualquier objeto muestra cuánto mejoraría tu equipo.
-- **Subasta:** el addon recuerda los precios que ves al buscar (de cada tirada
-  por separado) durante 30 días. No hace búsquedas por su cuenta.
+The **Weights** button (top right) opens the weights editor for your spec. There
+you can change how much each stat is worth, import or export Pawn scales, and go
+back to the preset.
+
+It also has four settings:
+
+- **Level weights** (on): ratings such as hit or crit are worth more at low
+  levels; this checkbox takes that into account.
+- **ilvl cap**: hides items with an item level far above what is usual.
+- **Hit cap (70)**: at level 70, hit beyond the cap is not valued.
+- **Bag alerts**: warns you in chat if something in your bags upgrades a slot
+  (only while the window is open).
 
 ---
 
-## Comandos
+## While you play
 
-| Comando | Qué hace |
+- **Quests:** when you accept or turn in a quest with several rewards, the chat
+  tells you which one to pick. If none is an upgrade, it suggests the one that
+  sells for the most.
+- **Group loot:** when you roll on an item, it tells you whether Need or Greed
+  makes sense.
+- **Leveling up:** the chat tells you about the upgrades that open up.
+- **Tooltips:** any item shows how much it would improve your gear.
+- **Auction House:** the addon remembers the prices you see when you search
+  (for each roll separately) for 30 days. It never searches on its own.
+
+---
+
+## Commands
+
+| Command | What it does |
 |---|---|
-| `/lbis` | Abre o cierra la ventana. |
-| `/lbis help` | Ayuda y nombres de las ranuras. |
-| `/lbis summary` | Resumen de las 17 ranuras en el chat. |
-| `/lbis slot <ranura>` | Las mejores opciones de una ranura. |
-| `/lbis spec [nombre\|auto]` | Ver o fijar tu especialización. |
-| `/lbis level [n\|next]` | Cambiar el nivel objetivo. |
-| `/lbis edit` | Abrir el editor de pesos. |
-| `/lbis filter [nombre] [on\|off]` | Ver o cambiar filtros, incluidos los que no tienen casilla (Mi armadura, Mi facción, Sin PvP). |
-| `/lbis sort [ranura\|mejora\|oro]` | Cambiar el orden. |
-| `/lbis consumibles` | Consumibles recomendados en el chat. |
-| `/lbis quest` | Qué recompensa elegir en la misión seleccionada. |
-| `/lbis bags [on\|off]`, `/lbis equip` | Avisos de bolsas y equipar la última mejora avisada. |
-| `/lbis rolls [on\|off]` | Consejos al tirar por botín. |
-| `/lbis profs sim` | Qué profesión te daría más equipo. |
-| `/lbis phase [1-5\|auto]` | Fase del servidor. |
-| `/lbis goal [70\|leveling]` | Cambiar entre leveling y nivel 70. |
-| `/lbis access` | Qué lee el addon de tu reputación y tus misiones. |
-| `/lbis import <escala>`, `/lbis export` | Importar o exportar una escala de Pawn. |
-| `/lbis explain <itemID>` | Desglose del puntaje de un objeto. |
-| `/lbis errors` | Errores registrados por el addon. |
+| `/lbis` | Opens or closes the window. |
+| `/lbis help` | Help and slot names. |
+| `/lbis summary` | Summary of the 17 slots in chat. |
+| `/lbis slot <slot>` | The best options for a slot. |
+| `/lbis spec [name\|auto]` | View or set your spec. |
+| `/lbis level [n\|next]` | Change the target level. |
+| `/lbis edit` | Open the weights editor. |
+| `/lbis filter [name] [on\|off]` | View or change filters, including those without a checkbox (My armor, My faction, No PvP). |
+| `/lbis sort [slot\|upgrade\|gold]` | Change the row order. |
+| `/lbis consumables` | Recommended consumables in chat. |
+| `/lbis quest` | Which reward to pick for the selected quest. |
+| `/lbis bags [on\|off]`, `/lbis equip` | Bag alerts, and equip the last upgrade you were alerted about. |
+| `/lbis rolls [on\|off]` | Advice when rolling on loot. |
+| `/lbis profs sim` | Which profession would give you the most gear. |
+| `/lbis phase [1-5\|all\|auto]` | Server phase. |
+| `/lbis goal [70\|leveling]` | Switch between leveling and level 70. |
+| `/lbis access` | What the addon reads about your reputation and quests. |
+| `/lbis import <scale>`, `/lbis export` | Import or export a Pawn scale. |
+| `/lbis explain <itemID>` | Score breakdown for an item. |
+| `/lbis errors` | Errors logged by the addon. |
 
-Ranuras: `head neck shoulder chest waist legs feet wrist hands finger1 finger2
+Slots: `head neck shoulder chest waist legs feet wrist hands finger1 finger2
 trinket1 trinket2 back mainhand offhand ranged`.
 
 ---
 
-## Qué debes saber
+## Good to know
 
-- **El puntaje no es DPS.** Es la suma de estadísticas según los pesos de tu
-  especialización. Sirve para comparar objetos, no para simular combate.
-- **Las gemas y los encantamientos que ya llevas puestos no cuentan**, ni en lo que
-  llevas ni en lo recomendado. **Las ranuras sí:** un objeto de nivel de objeto 100
-  o más se valora como si llevara en cada ranura la mejor gema para tus pesos (y el
-  bono de ranuras, cuando compensa), igual que hace Pawn, y lo mismo vale para lo
-  que llevas puesto. A partir de nivel de objeto 151 se usan gemas épicas; por
-  debajo, raras. Las gemas meta cuentan solo por su atributo, no por su efecto
-  especial. Es una suposición: no sabe qué gemas tienes ni cuáles puedes pagar.
-  `/lbis explain <id>` muestra esa parte en una línea aparte («Ranuras»).
-- **Los efectos especiales** (procs y efectos al usar) se describen, pero no se
-  puntúan: no hay forma fiable de darles un número.
-- **Las probabilidades de botín** vienen de cmangos y son aproximadas.
-- **Los eventos de temporada** no se detectan: durante una festividad, apaga
-  «Alcanzable» para ver sus objetos.
-- **Alcanzable** comprueba nivel, reputación y misiones, pero no llaves, cadenas
-  de misiones ni sintonías.
+- **The score is not DPS.** It is the sum of stats according to your spec's
+  weights. It is for comparing items, not for simulating combat.
+- **Gems and enchants you already have on your gear don't count**, neither in
+  what you wear nor in what is recommended. **Sockets do:** an item of item level
+  100 or higher is valued as if every socket held the best gem for your weights
+  (plus the socket bonus, when it is worth it), the way Pawn does, and the same
+  goes for what you are wearing. From item level 151 on, epic gems are used;
+  below that, rare ones. Meta gems count only for their stat, not their special
+  effect. It is an assumption: the addon doesn't know which gems you have or
+  which ones you can afford. `/lbis explain <id>` shows that part on a separate
+  line ("Sockets").
+- **Special effects** (procs and on-use effects) are described but not scored:
+  there is no reliable way to put a number on them.
+- **Loot drop chances** come from cmangos and are approximate.
+- **Seasonal events** are not detected: during a holiday, turn off "Reachable"
+  to see their items.
+- **Reachable** checks level, reputation and quests, but not keys, quest chains
+  or attunements.
 
 ---
 
-## Datos
+## Data
 
-La base incluye 11.544 objetos generados a partir de los datos abiertos de
-cmangos (TBC 2.4.3) y de las tablas del cliente. No se inventan
-identificadores, estadísticas ni probabilidades: si un dato no está en la
-fuente, se omite.
+The database includes 11,544 items generated from the open data of cmangos
+(TBC 2.4.3) and the client tables. Identifiers, stats and drop chances are never
+made up: if a piece of data is not in the source, it is left out.

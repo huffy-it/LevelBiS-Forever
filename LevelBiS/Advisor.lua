@@ -13,6 +13,7 @@
 ------------------------------------------------------------------------------
 local ADDON, ns = ...
 local S = ns.Scoring
+local L = ns.L
 
 local function Print(msg) ns.Print(msg) end
 
@@ -117,12 +118,12 @@ function ns.Evaluate(link, level)
     return best
 end
 
--- "+12% en Manos", "ranura vacía en Manos" or "mejora en Manos".
+-- "+12% in Hands", "empty slot in Hands" or "upgrade in Hands".
 function ns.GainText(ev)
     local where = slotWord(ev.slot)
-    if ev.empty then return "ranura vacía en " .. where end
-    if ev.pct then return ("+%.0f%% en %s"):format(ev.pct, where) end
-    return "mejora en " .. where
+    if ev.empty then return L["empty slot in %s"]:format(where) end
+    if ev.pct then return (L["+%.0f%% in %s"]):format(ev.pct, where) end
+    return L["upgrade in %s"]:format(where)
 end
 
 ------------------------------------------------------------------------------
@@ -158,8 +159,8 @@ function ns.ChooseReward(options)
     if pending then return nil, nil, true end
     if bestIdx then
         local ev = evals[bestIdx]
-        local text = ("Elige %s: %s."):format(options[bestIdx].link, ns.GainText(ev))
-        if ev.assumedRoll then text = text .. " Supone la mejor tirada." end
+        local text = L["Choose %s: %s."]:format(options[bestIdx].link, ns.GainText(ev))
+        if ev.assumedRoll then text = text .. " " .. L["Assumes the best roll."] end
         return bestIdx, text
     end
     -- Nothing improves anything: the most valuable thing to sell.
@@ -169,10 +170,10 @@ function ns.ChooseReward(options)
         if price and (not sellBest or price > sellBest) then sellIdx, sellBest = i, price end
     end
     if sellIdx and #options > 1 then
-        return sellIdx, ("Ninguna te mejora; %s se vende por más (%s)."):format(
+        return sellIdx, L["None of them is an upgrade; %s sells for more (%s)."]:format(
             options[sellIdx].link, money(sellBest))
     end
-    return nil, "Ninguna te mejora."
+    return nil, L["None of them is an upgrade."]
 end
 
 local function questOptions(kind)
@@ -249,7 +250,7 @@ function ns.BagScan()
                     alerts = alerts + 1
                     lastAlert = { link = link, slot = ev.slot }
                     ns.lastBagAlerts[#ns.lastBagAlerts + 1] = link
-                    Print(("Mejora en bolsas: %s %s. |cffffd100/lbis equip|r la pone."):format(
+                    Print(L["Bag upgrade: %s %s. |cffffd100/lbis equip|r equips it."]:format(
                         link, ns.GainText(ev)))
                 end
             end
@@ -261,13 +262,13 @@ end
 -- Equip the last alert. Out of combat only, and never past the client's own
 -- bind-on-equip confirmation.
 function ns.EquipLastAlert()
-    if not lastAlert then Print("no hay ninguna mejora pendiente en las bolsas.") return false end
+    if not lastAlert then Print(L["There is no pending upgrade in your bags."]) return false end
     if InCombatLockdown and InCombatLockdown() then
-        Print("no puedes equipar en combate.")
+        Print(L["You cannot equip in combat."])
         return false
     end
     if type(EquipItemByName) ~= "function" then
-        Print("este cliente no expone EquipItemByName.")
+        Print(L["This client does not expose EquipItemByName."])
         return false
     end
     local slotID = S.SLOTS[lastAlert.slot] and S.SLOTS[lastAlert.slot].slot
@@ -294,11 +295,11 @@ function ns.RollAdvice(rollID, retried)
     if advisedRoll[rollID] == link then return end
     advisedRoll[rollID] = link
     if ev and ev.better and not ev.unpriced then
-        Print(("|cff40ff40Necesidad:|r %s %s."):format(link, ns.GainText(ev)))
+        Print(L["|cff40ff40Need:|r %s %s."]:format(link, ns.GainText(ev)))
     elseif ev and not ev.unpriced then
-        Print(("|cffffd100Codicia:|r %s no te mejora."):format(link))
+        Print(L["|cffffd100Greed:|r %s is not an upgrade."]:format(link))
     elseif reason == "unusable" then
-        Print(("|cffffd100Codicia:|r %s no es para tu clase o especialización."):format(link))
+        Print(L["|cffffd100Greed:|r %s is not for your class or spec."]:format(link))
     end
 end
 
@@ -324,17 +325,18 @@ function ns.ReasonLine(link)
             end
         end
         if detail and (detail.socketPoints or 0) > mainPoints then
-            main = "sus ranuras con gemas ideales"
+            main = L["its sockets with ideal gems"]
         end
     end
-    local head = ev.empty and ("Llena una ranura vacía: " .. slotWord(ev.slot))
-                 or ("Mejora de %.0f%% en %s sobre lo que llevas"):format(ev.pct or 0, slotWord(ev.slot))
+    local head = ev.empty and L["Fills an empty slot: %s"]:format(slotWord(ev.slot))
+                 or (L["%.0f%% upgrade in %s"]:format(ev.pct or 0, slotWord(ev.slot))
+                     .. " " .. L["over what you have equipped"])
     -- Lower-case only a plain ASCII first letter: string.lower works on bytes,
     -- and an accented capital is two bytes in UTF-8.
     if main and main:byte(1) and main:byte(1) < 128 then
         main = main:sub(1, 1):lower() .. main:sub(2)
     end
-    return head .. (main and (", sobre todo por " .. main) or "") .. "."
+    return head .. (main and (L[", mostly from %s"]:format(main)) or "") .. "."
 end
 
 ------------------------------------------------------------------------------
@@ -360,26 +362,26 @@ function ns.ConsumableLines(level)
     local function line(label, b, extra)
         out[#out + 1] = {
             head = ("%s: %s"):format(label, name(b)),
-            detail = ("%s%s · nivel %d"):format(statText(b.entry.st), extra or "", b.entry.req or 0),
+            detail = (L["%s%s · level %d"]):format(statText(b.entry.st), extra or "", b.entry.req or 0),
             id = b.id, kind = b.entry.k,
         }
     end
     if best.useFlask then
-        line("Frasco", best.flask, " · sustituye a los dos elixires")
+        line(L["Flask"], best.flask, L[" · replaces both elixirs"])
     else
-        if best.battle then line("Elixir de batalla", best.battle) end
-        if best.guardian then line("Elixir de guardián", best.guardian) end
+        if best.battle then line(L["Battle Elixir"], best.battle) end
+        if best.guardian then line(L["Guardian Elixir"], best.guardian) end
     end
-    if best.food then line("Comida", best.food, " (Bien alimentado)") end
+    if best.food then line(L["Food"], best.food, L[" (Well Fed)"]) end
     local function potion(label, b)
         out[#out + 1] = {
             head = ("%s: %s"):format(label, name(b)),
-            detail = ("restaura %d-%d · nivel %d"):format(b.entry.lo, b.entry.hi, b.entry.req or 0),
+            detail = (L["restores %d-%d · level %d"]):format(b.entry.lo, b.entry.hi, b.entry.req or 0),
             id = b.id, kind = b.entry.k,
         }
     end
-    if best.hp then potion("Poción de vida", best.hp) end
-    if best.mana then potion("Poción de maná", best.mana) end
+    if best.hp then potion(L["Health Potion"], best.hp) end
+    if best.mana then potion(L["Mana Potion"], best.mana) end
     return out
 end
 
@@ -394,7 +396,7 @@ local function toggle(key, rest, label)
     if rest == "on" then sv[key] = true
     elseif rest == "off" then sv[key] = false
     else sv[key] = not sv[key] end
-    Print(("%s: %s"):format(label, sv[key] and "|cff40ff40activados|r" or "|cffff6060apagados|r"))
+    Print(("%s: %s"):format(label, sv[key] and L["|cff40ff40enabled|r"] or L["|cffff6060disabled|r"]))
     if ns.UI and ns.UI.Refresh and LevelBiSFrame and LevelBiSFrame:IsShown() then ns.UI:Refresh() end
 end
 
@@ -402,10 +404,10 @@ local function consumablesCmd()
     local level = ns:TargetLevel()
     local lines = ns.ConsumableLines(level)
     if #lines == 0 then
-        Print("ningún consumible puntúa con tus pesos a este nivel.")
+        Print(L["No consumable scores with your weights at this level."])
         return
     end
-    Print(("consumibles para el nivel |cffffd100%d|r, según tus pesos:"):format(level))
+    Print(L["Consumables for level |cffffd100%d|r, based on your weights:"]:format(level))
     for _, l in ipairs(lines) do
         Print(("  %s |cff808080%s|r"):format(l.head, l.detail))
     end
@@ -415,7 +417,7 @@ ns.ExtraCmd.consumables = consumablesCmd
 ns.ExtraCmd.equip = function() ns.EquipLastAlert() end
 ns.ExtraCmd.quest = function() ns.QuestLogAdvice() end
 ns.ExtraCmd.bags = function(rest)
-    toggle("bagAlerts", rest, "avisos de bolsas (solo con la ventana abierta)")
+    toggle("bagAlerts", rest, L["Bag alerts (only with the window open)"])
 end
 ns.ExtraCmd.rolls = function(rest)
     local sv = settings()
@@ -423,8 +425,8 @@ ns.ExtraCmd.rolls = function(rest)
     if rest == "off" then sv.rollAdvice = false
     elseif rest == "on" then sv.rollAdvice = true
     else sv.rollAdvice = (sv.rollAdvice == false) end
-    Print(("consejo en tiradas: %s"):format(sv.rollAdvice ~= false
-        and "|cff40ff40activado|r" or "|cffff6060apagado|r"))
+    Print(L["Roll advice: %s"]:format(sv.rollAdvice ~= false
+        and L["|cff40ff40enabled|r"] or L["|cffff6060disabled|r"]))
 end
 
 local f = CreateFrame("Frame")

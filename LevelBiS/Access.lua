@@ -1,7 +1,7 @@
 -- Access.lua ----------------------------------------------------------------
 -- Personal access: which routes to an item THIS character can still use.
 --
--- "Alcanzable" used to mean the level a source opens at. It now also means the
+-- "Reachable" used to mean the level a source opens at. It now also means the
 -- reputation you hold is enough and the quest route is not exhausted. Three
 -- parts, kept apart on purpose:
 --
@@ -22,7 +22,7 @@
 --   * Reputation is a requirement of the ITEM, checked when it is bought. It is
 --     stamped (rf = faction, rr = required standing 1..8) onto the VENDOR
 --     routes of an item that carries repf, and nowhere else. A drop or a quest
---     route of the same item stays open. Only the "Alcanzable" filter uses it.
+--     route of the same item stays open. Only the "Reachable" filter uses it.
 --   * A quest route is exhausted only if it carries id and once=1 and the
 --     client says that quest is completed. A quest in the log is not completed.
 --   * A route marked ev (the pipeline proved the source exists only while a
@@ -36,6 +36,7 @@
 --     (bound on equip or on use), is never restricted by access.
 ------------------------------------------------------------------------------
 local ADDON, ns = ...
+local L = ns.L
 local A = {}
 ns.Access = A
 
@@ -58,15 +59,15 @@ function A.StandingFromCmangos(rank)
     return rank + 1
 end
 
-local LABEL_ES = { "Odiado", "Hostil", "Receloso", "Neutral", "Amistoso",
-                   "Honrado", "Reverenciado", "Exaltado" }
+local LABEL_EN = { L["Hated"], L["Hostile"], L["Unfriendly"], L["Neutral"], L["Friendly"],
+                   L["Honored"], L["Revered"], L["Exalted"] }
 
 -- The client's own word when it has one (FACTION_STANDING_LABEL1..8), so the
--- text matches the language of the game; the Spanish name otherwise.
+-- text matches the language of the game; the English name otherwise.
 function A.StandingLabel(standing)
     local global = _G and _G["FACTION_STANDING_LABEL" .. tostring(standing)]
     if type(global) == "string" and global ~= "" then return global end
-    return LABEL_ES[standing] or "?"
+    return LABEL_EN[standing] or "?"
 end
 
 ------------------------------------------------------------------------------
@@ -174,27 +175,27 @@ function A.EventActive(eventID)
     return state.events[eventID]
 end
 
--- Spanish name of a game_event the pipeline marks (data/game_event.entry), with
--- its article, so the sentence reads "Solo durante la Fiesta de la Cerveza".
--- Verified against Blizzard's Spanish news (news.blizzard.com/es-es and es-mx):
--- "Fiesta de la Cerveza", "Festival de Invierno", "Halloween" and "Feria de la
--- Luna Negra". The three Darkmoon Faire events are one fair in three cities.
--- An event the pipeline starts marking without an entry here reads "un evento
--- de temporada": add its verified name, a test checks the data against this list.
+-- English name of a game_event the pipeline marks (data/game_event.entry), so
+-- the sentence reads "Only during Brewfest". These are the names the enUS
+-- client uses for the holidays: "Winter Veil", "Hallow's End", "Brewfest" and
+-- "Darkmoon Faire". The three Darkmoon Faire events are one fair in three
+-- cities. An event the pipeline starts marking without an entry here reads "a
+-- seasonal event": add its verified name, a test checks the data against this
+-- list.
 local EVENT_PHRASE = {
-    [2]  = "el Festival de Invierno",
-    [12] = "Halloween",
-    [26] = "la Fiesta de la Cerveza",
-    [78] = "la Feria de la Luna Negra",
-    [81] = "la Feria de la Luna Negra",
-    [84] = "la Feria de la Luna Negra",
+    [2]  = L["Winter Veil"],
+    [12] = L["Hallow's End"],
+    [26] = L["Brewfest"],
+    [78] = L["Darkmoon Faire"],
+    [81] = L["Darkmoon Faire"],
+    [84] = L["Darkmoon Faire"],
 }
 A.EVENT_PHRASE = EVENT_PHRASE
 
--- "Solo durante <evento>" for a seasonal route or source, nil otherwise.
+-- "Only during <event>" for a seasonal route or source, nil otherwise.
 function A.SeasonNote(route)
     if not (route and route.ev) then return nil end
-    return "Solo durante " .. (EVENT_PHRASE[route.ev] or "un evento de temporada")
+    return L["Only during %s"]:format(EVENT_PHRASE[route.ev] or L["a seasonal event"])
 end
 
 function A.Owns(itemID)
@@ -254,17 +255,17 @@ end
 function A.RouteNote(route)
     if not route then return nil end
     if route.rf and route.rr then
-        local who = state.names[route.rf] or ("facción " .. tostring(route.rf))
-        local text = ("Requiere %s con %s"):format(A.StandingLabel(route.rr), who)
+        local who = state.names[route.rf] or L["faction %s"]:format(tostring(route.rf))
+        local text = L["Requires %s with %s"]:format(A.StandingLabel(route.rr), who)
         local have = A.Reputation(route.rf)
         if have then
-            return text .. (" · tienes %s"):format(A.StandingLabel(have))
+            return text .. L[" · you have %s"]:format(A.StandingLabel(have))
         end
-        return text .. " · acceso personal por confirmar"
+        return text .. L[" · personal access to confirm"]
     end
     if route.t == "quest" and route.once and route.id
        and A.QuestCompleted(route.id) == true then
-        return "Misión ya completada"
+        return L["Quest already completed"]
     end
     return nil
 end
@@ -547,24 +548,23 @@ ns.ExtraCmd.access = function(rest)
     for _, id in ipairs(watch.quests) do
         if state.done[id] == true then done = done + 1 end
     end
-    print_(("acceso personal, revisión %d."):format(revision))
-    print_(("  reputación: %s, %d de %d facciones leídas."):format(
-        type(GetFactionInfoByID) == "function" and "GetFactionInfoByID" or "sin API",
+    print_(L["personal access, revision %d."]:format(revision))
+    print_(L["  reputation: %s, %d of %d factions read."]:format(
+        type(GetFactionInfoByID) == "function" and "GetFactionInfoByID" or L["no API"],
         known, total))
-    print_(("  misiones: %s, %d de %d misiones únicas completadas."):format(
-        A.QuestAPI() or "sin API", done, tracked))
+    print_(L["  quests: %s, %d of %d one-time quests completed."]:format(
+        A.QuestAPI() or L["no API"], done, tracked))
     local confirmed = 0
     for _, active in pairs(state.events) do
         if active == true then confirmed = confirmed + 1 end
     end
-    print_(("  temporada: %d rutas de evento; el calendario no se lee, así que se "
-        .. "cierran con «Alcanzable» salvo %d evento(s) confirmado(s)."):format(
+    print_(L["  season: %d event routes; the calendar is not read, so they are closed under \"Reachable\" except for %d confirmed event(s)."]:format(
         A.SeasonalRoutes(), confirmed))
     local failed = false
     for api, message in pairs(errors) do
         failed = true
-        print_(("  error de %s: %s"):format(api, message))
+        print_(L["  %s error: %s"]:format(api, message))
     end
-    if not failed then print_("  sin errores del cliente.") end
-    print_("  /lbis access refresh vuelve a leer el cliente.")
+    if not failed then print_(L["  no client errors."]) end
+    print_(L["  /lbis access refresh re-reads the client."])
 end

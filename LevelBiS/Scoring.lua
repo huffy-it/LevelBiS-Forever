@@ -3,6 +3,7 @@
 -- ranking, and 2H vs 1H+offhand comparison. Reads the static DB at ns.db.
 ------------------------------------------------------------------------------
 local ADDON, ns = ...
+local L = ns.L
 local S = {}
 ns.Scoring = S
 
@@ -379,8 +380,8 @@ S.PHASE = {
     repf = { [1077] = 5 },
 }
 S.PHASE_NAMES = {
-    [1] = "Karazhan", [2] = "SSC y El Ojo", [3] = "BT y Hyjal",
-    [4] = "Zul'Aman", [5] = "Sunwell",
+    [1] = L["Karazhan"], [2] = L["SSC and The Eye"], [3] = L["BT and Hyjal"],
+    [4] = L["Zul'Aman"], [5] = L["Sunwell"],
 }
 -- Open on the server today: Black Temple and Hyjal, since 27/8/2026. Updated by
 -- hand in every release; Zul'Aman and the Sunwell have only estimated dates.
@@ -716,8 +717,8 @@ S.SOCKET_EPIC_ILVL = 151
 local SOCKET_META = 1
 local SOCKET_ANY = 14  -- prismatic socket, and "a gem of any color"
 local SOCKET_CODES = { 2, 4, 8, SOCKET_ANY }
-local SOCKET_COLOR_WORD = {  -- for the explain line, feminine plural
-    [2] = "rojas", [4] = "amarillas", [8] = "azules", [14] = "de cualquier color",
+local SOCKET_COLOR_WORD = {  -- for the explain line, an adjective for "gems"
+    [2] = L["red"], [4] = L["yellow"], [8] = L["blue"], [14] = L["any-color"],
 }
 
 local GEM_TIER_MAX = { rare = 3, epic = 4 }  -- highest gem quality of each tier
@@ -847,7 +848,7 @@ function S.SocketValue(item, weights)
     return info and info.value or 0
 end
 
--- "gemas azules ideales", "gema meta ideal"...: what the explain line says the
+-- "ideal blue gems", "ideal meta gem"...: what the explain line says the
 -- sockets were priced with.
 function S.SocketSummary(info, item)
     if not info then return nil end
@@ -858,16 +859,18 @@ function S.SocketSummary(info, item)
             for _, code in ipairs(item.sk) do
                 if code ~= SOCKET_META and not seen[code] then
                     seen[code] = true
-                    words[#words + 1] = SOCKET_COLOR_WORD[code] or "de otro color"
+                    words[#words + 1] = SOCKET_COLOR_WORD[code] or L["other-color"]
                 end
             end
-            parts[#parts + 1] = "gemas " .. table.concat(words, " y ") .. " ideales"
-                                .. (info.bonus ~= 0 and ", con bono de ranuras" or "")
+            local gems = table.concat(words, L[" and "])
+            parts[#parts + 1] = info.bonus ~= 0
+                and L["ideal %s gems, with socket bonus"]:format(gems)
+                or L["ideal %s gems"]:format(gems)
         else
-            parts[#parts + 1] = "la mejor gema de cualquier color en cada ranura, sin bono"
+            parts[#parts + 1] = L["the best gem of any color in each socket, no bonus"]
         end
     end
-    if info.metas > 0 then parts[#parts + 1] = "gema meta ideal" end
+    if info.metas > 0 then parts[#parts + 1] = L["ideal meta gem"] end
     return table.concat(parts, "; ")
 end
 
@@ -956,20 +959,20 @@ end
 ------------------------------------------------------------------------------
 -- Ranking
 ------------------------------------------------------------------------------
--- Ajuste de arma separado del puntaje Pawn. Hipótesis y fuentes:
--- WEAPON_RULES.md. Un uso de la habilidad por enfriamiento base, un objetivo;
--- no simula ira, talentos, procs ni daño total de una rotación.
+-- Weapon adjustment, kept apart from the Pawn score. Assumptions and sources:
+-- WEAPON_RULES.md. One use of the ability per base cooldown, one target;
+-- it does not simulate rage, talents, procs or the total damage of a rotation.
 local WEAPON_CYCLE = {
     WARRIOR = {
         Fury = { level=36, seconds=10, coefficient=1, normalized=true, both=true,
-                 name="Torbellino" },
+                 name=L["Whirlwind"] },
         Arms = { level=40, seconds=6, coefficient=1, normalized=true,
-                 name="Golpe mortal" },
+                 name=L["Mortal Strike"] },
     },
     SHAMAN = { Enhancement = { level=40, seconds=10, coefficient=1, both=true,
-                               name="Golpe de tormenta" } },
+                               name=L["Stormstrike"] } },
     PALADIN = { Retribution = { level=50, seconds=6, coefficient=1.1,
-                                name="Golpe de cruzado" } },
+                                name=L["Crusader Strike"] } },
 }
 
 local function profileSpec(weights, classToken)
@@ -987,7 +990,7 @@ end
 
 function S.WeaponAdjustment(item, weights, slotID, level)
     if not item or item.ic ~= IC_WEAPON or (slotID ~= 16 and slotID ~= 17) then return 0 end
-    if (weights.spd or 0) ~= 0 then return 0 end -- respetar velocidad personalizada
+    if (weights.spd or 0) ~= 0 then return 0 end -- respect a custom speed weight
     local context = ns.Weights.Context(weights)
     if not context then return 0 end
     local rules = WEAPON_CYCLE[context.class]
@@ -1000,9 +1003,9 @@ function S.WeaponAdjustment(item, weights, slotID, level)
     local speed = rule.normalized and S.NormalizedSpeed(item) or st.spd
     local ap = ns.weaponAttackPower or 0
     local rate = rule.coefficient / rule.seconds
-    -- Conserva el peso publicado para un arma de velocidad de referencia.
-    -- Convierte la diferencia de daño por golpe a DPS equivalentes: evita
-    -- sumar nuevamente toda la habilidad sobre un peso que ya valora DPS.
+    -- Keeps the published weight for a weapon of reference speed.
+    -- Converts the difference in damage per hit into equivalent DPS: avoids
+    -- adding the whole ability again on top of a weight that already values DPS.
     local difference = st.dps * (st.spd - reference) + ap / 14 * (speed - reference)
     local effectiveDelta = difference * rate / (1 + reference * rate)
     effectiveDelta = math.max(-st.dps, effectiveDelta)
@@ -1011,18 +1014,18 @@ function S.WeaponAdjustment(item, weights, slotID, level)
 end
 
 ------------------------------------------------------------------------------
--- Ajustes por nivel y por tope de golpe
+-- Adjustments by level and by hit cap
 ------------------------------------------------------------------------------
--- Los presets están calibrados a nivel 70. Un índice de combate compra más
--- porcentaje cuanto más bajo es el nivel, así que a nivel 40 cada punto de
--- índice vale más que a 70. La conversión de TBC es conocida:
+-- The presets are calibrated at level 70. A combat rating buys more
+-- percentage the lower the level is, so at level 40 each rating point is
+-- worth more than at 70. The TBC conversion is known:
 --
---     nivel <= 10:  2/52      nivel 11..60: (nivel-8)/52      nivel 61..70: 82/(262-3*nivel)
+--     level <= 10:  2/52      level 11..60: (level-8)/52      level 61..70: 82/(262-3*level)
 --
--- y los puntos de índice por 1% son (base * coeficiente): a 70, 22,08 de
--- crítico (14 * 82/52); a 60, 14. El peso de un índice a nivel L es el peso a 70
--- multiplicado por coeficiente(70) / coeficiente(L). Solo escalan estos índices;
--- el editor sigue mostrando los pesos a nivel 70. Apagado con
+-- and the rating points per 1% are (base * coefficient): at 70, 22.08 for
+-- crit (14 * 82/52); at 60, 14. The weight of a rating at level L is the weight
+-- at 70 times coefficient(70) / coefficient(L). Only these ratings scale; the
+-- editor keeps showing the level 70 weights. Turned off with
 -- `filters.levelScale = false`.
 local RATING_KEYS = {
     hit = true, spellhit = true, crit = true, spellcrit = true,
@@ -1042,7 +1045,7 @@ function S.RatingScale(level)
     return ratingCoefficient(70) / ratingCoefficient(level)
 end
 
--- Opción guardada que afecta a la puntuación sin llegar en `filters`.
+-- Saved option that affects scoring without arriving in `filters`.
 function S.Option(key)
     local sv = LevelBiSCharDB
     local flt = sv and sv.settings and sv.settings.filters
@@ -1053,8 +1056,8 @@ local function scoreLevel(level)
     return level or (ns.TargetLevel and ns:TargetLevel()) or ns.playerLevel or 70
 end
 
--- Puntos extra de los índices a este nivel. Parte del puntaje en caché (que es
--- a nivel 70) más (escala - 1) veces lo que aportan los índices del objeto.
+-- Extra points from the ratings at this level. Starts from the cached score
+-- (which is at level 70) plus (scale - 1) times what the item's ratings add.
 function S.LevelScaleAdjustment(item, weights, level)
     if not (item and weights and S.Option("levelScale")) then return 0 end
     local m = S.RatingScale(scoreLevel(level))
@@ -1079,11 +1082,11 @@ function S.LevelScaleAdjustment(item, weights, level)
     return (m - 1) * sum
 end
 
--- Tope de golpe (M-16). Opcional y solo a nivel 70, con tu golpe de verdad:
--- `ns.hitRating` lo lee Core con GetCombatRating. Valores declarados, a 70:
--- 9% cuerpo a cuerpo y a distancia contra un jefe de nivel 73 (142 de índice) y
--- 16% con hechizos (202). No cuenta talentos que bajan el tope, así que es
--- conservador: nunca te dice que ya llegaste cuando no es cierto.
+-- Hit cap (M-16). Optional and only at level 70, with your real hit:
+-- `ns.hitRating` is read by Core with GetCombatRating. Declared values, at 70:
+-- 9% melee and ranged against a level 73 boss (142 rating) and 16% for spells
+-- (202). It does not count talents that lower the cap, so it is conservative:
+-- it never tells you that you have reached it when that is not true.
 S.HIT_CAP = { hit = 142, spellhit = 202 }
 
 local function slotStat(slotID, key)
@@ -1124,8 +1127,8 @@ function S.HitCapAdjustment(item, weights, slotID, level)
             end
             gain = gain + (socketStats and socketStats[key] or 0)
             if gain > 0 then
-                -- Golpe del resto del equipo: el actual sin lo que esta ranura
-                -- lleva puesto. Solo lo que cabe bajo el tope vale.
+                -- Hit from the rest of the gear: the current total minus what this
+                -- slot has on. Only what fits under the cap counts.
                 local base = math.max(0, current - slotStat(slotID, key))
                 local useful = math.min(base + gain, cap) - math.min(base, cap)
                 total = total - w * (gain - useful)
@@ -1191,7 +1194,7 @@ function S.BestConsumables(level, weights, classToken)
     return best
 end
 
--- Punto único para puntuar recomendado, equipado y tooltip en la misma mano.
+-- Single point to score recommended, equipped and tooltip on the same hand.
 function S.ScoreForSlot(item, weights, slotID, level)
     weights = weights or S._activeWeights
     if not weights then return 0 end
@@ -1208,18 +1211,18 @@ function S.WeaponNote(item, weights, slotID)
     if not context then return nil end
     local _, ability = S.WeaponAdjustment(item, weights, slotID)
     if ability then
-        return "Arma: ajuste estimado por " .. ability .. ". No equivale a DPS real."
+        return L["Weapon: estimated adjustment for %s. It is not real DPS."]:format(ability)
     end
     if context.class == "ROGUE" then
         return context.spec == "Assassination"
-            and "Mutilar requiere dos dagas. Venenos y rotación no están simulados."
-            or "La velocidad afecta habilidades y venenos. El puntaje no simula la rotación."
+            and L["Mutilate needs two daggers. Poisons and rotation are not simulated."]
+            or L["Speed affects abilities and poisons. The score does not simulate the rotation."]
     elseif context.class == "DRUID" and context.spec:find("Feral", 1, true) then
-        return "En forma feral importan estadísticas y poder de ataque feral, no el DPS del arma."
+        return L["In feral form, stats and feral attack power matter, not the weapon's DPS."]
     elseif context.class == "WARRIOR" or context.class == "PALADIN" or context.class == "SHAMAN" then
-        return "Arma valorada por estadísticas. Procs, amenaza y rotación no están simulados."
+        return L["Weapon valued by its stats. Procs, threat and rotation are not simulated."]
     elseif context.class == "HUNTER" then
-        return "El puntaje no simula la cadencia de disparos ni el combate cuerpo a cuerpo."
+        return L["The score does not simulate shot cadence or melee combat."]
     end
 end
 
@@ -1380,9 +1383,9 @@ function S.ReachLevel(item, filters, itemId)
     return (alvl > req) and alvl or req
 end
 
--- Capturas del cliente Anniversary (16/9/2026): estos
--- cuatro objetos dicen «Se liga al recogerlo», aunque cmangos declara BoE.
--- Respaldo mientras GetItemInfo carga; no modifica los datos de la fuente.
+-- Captures from the Anniversary client (2026-09-16): these four items say
+-- "Binds when picked up", although cmangos declares BoE. A fallback while
+-- GetItemInfo loads; it does not modify the source data.
 local CAPTURED_BINDING = { [30722]=1, [30729]=1, [30738]=1, [30740]=1 }
 local clientBindings = {}
 
@@ -1400,26 +1403,26 @@ end
 
 function S.Binding(item, id)
     id = id or item.id
-    -- El ranking nunca pide datos al cliente: cada respuesta puede refrescarlo.
+    -- The ranking never asks the client for data: each answer may refresh it.
     if id and clientBindings[id] ~= nil then return clientBindings[id] end
     return (id and CAPTURED_BINDING[id]) or item.bind
 end
 
--- La subasta acepta sin ligadura, BoE y ligado al usar. Una ligadura
--- ausente o de misión no demuestra que el objeto se pueda vender.
+-- The auction house accepts unbound, BoE and bind-on-use items. A missing
+-- or quest binding does not prove that the item can be sold.
 function S.Auctionable(item, id)
     if not item then return false end
     local binding = S.Binding(item, id)
     return binding == 0 or binding == 2 or binding == 3
 end
 
--- Tope de ilvl por nivel: una HEURÍSTICA declarada, no un dato. Mide lo que la
--- propia base muestra: el equipo de leveling hasta 57 tiene ilvl de requisito
--- más 5 a 9 (percentil 97 de cada tramo de 5 niveles); de 58 a 60 llegan las
--- recompensas de Terrallende de nivel 100 a 105 y de 65 a 69 el equipo de
--- 115 a 125. Un objeto sin fuente que lo ate a un nivel (vendedor, cofre) solo
--- lo limita su requisito, y esto lo acota. Apagado por defecto: `ilvlCap`.
--- A nivel 70 no hay tope.
+-- ilvl cap by level: a declared HEURISTIC, not a fact. It measures what the
+-- database itself shows: leveling gear up to 57 has an ilvl of the requirement
+-- plus 5 to 9 (97th percentile of each 5-level band); from 58 to 60 the
+-- level 100 to 105 Outland rewards arrive, and from 65 to 69 the 115 to 125
+-- gear. An item with no source tying it to a level (vendor, chest) is only
+-- limited by its requirement, and this bounds it. Off by default: `ilvlCap`.
+-- At level 70 there is no cap.
 function S.IlvlCap(level)
     if not level or level >= 70 then return nil end
     if level <= 57 then return level + 15 end
@@ -1604,7 +1607,7 @@ end
 -- unique. Two of the same trinket is a legitimate answer in the data (cmangos
 -- marks neither Blackhand's Breadth nor Eye of the Beast as unique) but never a
 -- useful one: showing the runner-up tells you your two best distinct options,
--- and the tooltip still says "Único" when the item is one you could not have
+-- and the tooltip still says "Unique" when the item is one you could not have
 -- doubled anyway.
 ------------------------------------------------------------------------------
 S.SLOT_PAIR = { finger1 = "finger2", trinket1 = "trinket2", mainhand = "offhand" }
@@ -2323,7 +2326,7 @@ function S.Explain(item, weights, slotID, offhand)
     if not (item and weights) then return nil end
     local ranged = RANGED_SLOT[item.slot]
     local parts = {}
-    -- La misma escala por nivel que usa ScoreForSlot, para que las partes sumen.
+    -- The same level scale ScoreForSlot uses, so the parts add up.
     local levelMultiplier = S.Option("levelScale") and S.RatingScale(scoreLevel()) or 1
     local function addStats(st, origin)
         for _, key in ipairs(ns.STAT_KEYS) do

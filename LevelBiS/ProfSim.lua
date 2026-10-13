@@ -11,6 +11,7 @@
 ------------------------------------------------------------------------------
 local ADDON, ns = ...
 local S = ns.Scoring
+local L = ns.L
 
 local function Print(msg) ns.Print(msg) end
 
@@ -29,9 +30,9 @@ end
 local PROFESSIONS = { "Alchemy", "Blacksmithing", "Enchanting", "Engineering",
                       "Jewelcrafting", "Leatherworking", "Tailoring" }
 local LABEL = {
-    Alchemy = "Alquimia", Blacksmithing = "Herrería", Enchanting = "Encantamiento",
-    Engineering = "Ingeniería", Jewelcrafting = "Joyería",
-    Leatherworking = "Peletería", Tailoring = "Sastrería",
+    Alchemy = L["Alchemy"], Blacksmithing = L["Blacksmithing"], Enchanting = L["Enchanting"],
+    Engineering = L["Engineering"], Jewelcrafting = L["Jewelcrafting"],
+    Leatherworking = L["Leatherworking"], Tailoring = L["Tailoring"],
 }
 ns.PROFESSION_LABEL = LABEL
 
@@ -141,8 +142,7 @@ function ns.ProfSimLines(job)
     local list = ns.ProfSimResults(job)
     local first, last = job.levels[1], job.levels[#job.levels]
     if #list == 0 then
-        lines[1] = ("Ninguna profesión te daría equipo mejor entre los niveles %d y %d "
-            .. "con la habilidad %d, que es la que permite tu nivel."):format(first, last, job.rank)
+        lines[1] = L["No profession would give you better gear between levels %d and %d at skill %d, the most your level allows."]:format(first, last, job.rank)
         return lines
     end
     for i = 1, math.min(4, #list) do
@@ -158,11 +158,10 @@ function ns.ProfSimLines(job)
             if j <= 3 then words[#words + 1] = slotWord(s.slot) end
             from, to = math.min(from, s.rec.from), math.max(to, s.rec.to)
         end
-        local more = #slots > 3 and (" y %d más"):format(#slots - 3) or ""
-        local when = (from == to) and ("a nivel %d"):format(from)
-                     or ("entre los niveles %d y %d"):format(from, to)
-        lines[#lines + 1] = ("%s: ganarías en %s%s %s, hasta +%.0f%% "
-            .. "sobre lo mejor que consigues sin ella."):format(
+        local more = #slots > 3 and L[" and %d more"]:format(#slots - 3) or ""
+        local when = (from == to) and L["at level %d"]:format(from)
+                     or L["between levels %d and %d"]:format(from, to)
+        lines[#lines + 1] = L["%s: you would gain in %s%s %s, up to +%.0f%% over the best you can get without it."]:format(
             LABEL[res.prof] or res.prof, table.concat(words, ", "), more, when, res.peak)
     end
     return lines
@@ -170,23 +169,23 @@ end
 
 local running
 function ns.ProfSimRun()
-    if running then Print("la simulación ya está en marcha.") return end
+    if running then Print(L["The simulation is already running."]) return end
     local job = ns.ProfSimStart()
-    if not job then Print("no hay datos para simular.") return end
+    if not job then Print(L["There is no data to simulate."]) return end
     if job.rank == 0 then
-        Print("a tu nivel aún no puedes aprender una profesión (se abre en el nivel 5).")
+        Print(L["You cannot learn a profession at your level yet (it opens at level 5)."])
         return
     end
     ns.profSimResult = job
     local function finish()
         running = nil
-        Print(("profesiones, con la habilidad |cffffd100%d|r que permite tu nivel:"):format(job.rank))
+        Print(L["Professions, at the skill |cffffd100%d|r your level allows:"]:format(job.rank))
         for _, line in ipairs(ns.ProfSimLines(job)) do Print("  " .. line) end
-        Print("  |cff808080Simulación: supone la receta aprendida; no cuenta materiales ni oro.|r")
+        Print("  " .. L["|cff808080Simulation: assumes the recipe is learned; ignores materials and gold.|r"])
     end
     if C_Timer and C_Timer.After then
         running = job
-        Print(("simulando %d cálculos…"):format(job.total))
+        Print(L["Simulating %d calculations…"]:format(job.total))
         local reported = 0
         local function tick()
             if running ~= job then return end

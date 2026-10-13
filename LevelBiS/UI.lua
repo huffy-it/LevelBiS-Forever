@@ -8,6 +8,7 @@
 -- gap track -- not the score columns -- is the loudest thing on screen.
 ------------------------------------------------------------------------------
 local ADDON, ns = ...
+local L = ns.L
 local S = ns.Scoring
 local W = ns.Weights
 
@@ -50,8 +51,8 @@ local function afterDelay(seconds, fn)
 end
 
 -- 740, not 668: once the client started spelling the roll into the name, the
--- recommendation column was cutting "Ojo de contemplador carmesí de la bestia"
--- in half. Every extra pixel goes to that column; measured against a
+-- recommendation column was cutting a long name like "Crimson Beholder's Eye of
+-- the Beast" in half. Every extra pixel goes to that column; measured against a
 -- screenshot, not calculated.
 local FRAME_W = 740
 -- The header is derived from a handful of numbers, never from loose ones.
@@ -82,8 +83,8 @@ UI.HEADER_H = HEADER_H
 local HINT_H = 14
 
 -- Column grid, kept in one place so headers and rows cannot drift apart.
--- Measured against a screenshot, not calculated: "Secundaria" was being cut to
--- "Secunda..." at 58 px. The bar is 120 px wide: it only has to rank rows
+-- Measured against a screenshot, not calculated: a long label ("Secundaria",
+-- before the window was translated) was being cut to "Secunda..." at 58 px. The bar is 120 px wide: it only has to rank rows
 -- against each other, and the 60 px it gave back go to the recommended name.
 -- Reading left to right, every column ends before the next one starts:
 --   track  144..264   recIcon 278..296   recName 302..572 (320 wide when the
@@ -100,19 +101,19 @@ UI.COLUMNS = X
 
 -- The grouping encodes the eligibility rules, so it is structure, not decor.
 local GROUPS = {
-    { title = "ARMADURA",  slots = { "head", "shoulder", "chest", "wrist",
+    { title = L["ARMOR"],     slots = { "head", "shoulder", "chest", "wrist",
                                      "hands", "waist", "legs", "feet" } },
-    { title = "ACCESORIOS", slots = { "neck", "back", "finger1", "finger2",
+    { title = L["ACCESSORIES"], slots = { "neck", "back", "finger1", "finger2",
                                      "trinket1", "trinket2" } },
-    { title = "ARMAS",     slots = { "mainhand", "offhand", "ranged" } },
+    { title = L["WEAPONS"],   slots = { "mainhand", "offhand", "ranged" } },
 }
 
 local SLOT_LABEL = {
-    head = "Cabeza", shoulder = "Hombros", chest = "Pecho", wrist = "Muñecas",
-    hands = "Manos", waist = "Cintura", legs = "Piernas", feet = "Pies",
-    neck = "Cuello", back = "Espalda", finger1 = "Anillo 1", finger2 = "Anillo 2",
-    trinket1 = "Abalorio 1", trinket2 = "Abalorio 2",
-    mainhand = "Principal", offhand = "Secundaria", ranged = "Distancia",
+    head = L["Head"], shoulder = L["Shoulder"], chest = L["Chest"], wrist = L["Wrist"],
+    hands = L["Hands"], waist = L["Waist"], legs = L["Legs"], feet = L["Feet"],
+    neck = L["Neck"], back = L["Back"], finger1 = L["Ring 1"], finger2 = L["Ring 2"],
+    trinket1 = L["Trinket 1"], trinket2 = L["Trinket 2"],
+    mainhand = L["Main Hand"], offhand = L["Off Hand"], ranged = L["Ranged"],
 }
 
 ns.SLOT_LABEL = SLOT_LABEL
@@ -302,7 +303,7 @@ end
 ------------------------------------------------------------------------------
 -- Source lines for tooltips
 ------------------------------------------------------------------------------
-local CONTENT_LABEL = { raid = "Raid", dungeon = "Mazmorra", pvp = "PvP" }
+local CONTENT_LABEL = { raid = L["Raid"], dungeon = L["Dungeon"], pvp = L["PvP"] }
 
 local function srcLines(item)
     local out = {}
@@ -311,13 +312,13 @@ local function srcLines(item)
     -- and "you can get this", so it belongs on the line, not in a footnote.
     local function lvl(s)
         if s.t == "quest" then
-            return s.access and ("  |c" .. HEX.mist .. "desde nivel " .. s.access .. "|r") or ""
+            return s.access and ("  |c" .. HEX.mist .. L["from level %s"]:format(s.access) .. "|r") or ""
         end
         return (s.lvl and s.lvl > 0)
-               and ("  |c" .. HEX.mist .. "NPC nivel " .. s.lvl .. "|r") or ""
+               and ("  |c" .. HEX.mist .. L["NPC level %s"]:format(s.lvl) .. "|r") or ""
     end
     if item.uniq then
-        out[#out+1] = "|c" .. HEX.mist .. "Único: no puedes llevar dos|r"
+        out[#out+1] = "|c" .. HEX.mist .. L["Unique: you cannot carry two"] .. "|r"
     end
     local sources = {}
     local filters = LevelBiSCharDB and LevelBiSCharDB.settings
@@ -325,12 +326,12 @@ local function srcLines(item)
     -- What you wear, carry or can buy at the auction house is never closed by
     -- reputation or a finished quest; see S.AccessExempt.
     local skipAccess = S.AccessExempt and S.AccessExempt(item, nil, filters)
-    -- Requirement and standing, or "Misión ya completada", from the cache.
+    -- Requirement and standing, or "Quest already completed", from the cache.
     local function note(s)
         local text = ns.Access and ns.Access.RouteNote(s)
         return text and ("  |c" .. HEX.mist .. "· " .. text .. "|r") or ""
     end
-    -- "Solo durante <evento>": a fact about the source, shown whatever the
+    -- "Only during <event>": a fact about the source, shown whatever the
     -- filters say (the pipeline proved it exists only while the event runs).
     local function season(s)
         local text = ns.Access and ns.Access.SeasonNote and ns.Access.SeasonNote(s)
@@ -352,33 +353,33 @@ local function srcLines(item)
         local s = rankedSource.source
         if s.t == "drop" then
             local where = s.inst or CONTENT_LABEL[s.ct]
-                       or (s.u and "Origen desconocido") or "Mundo abierto"
+                       or (s.u and L["Unknown source"]) or L["Open world"]
             if s.ct == "dungeon" then
-                local difficulty = ({ [1]="normal", [2]="heroica", [3]="normal y heroica" })[s.diff]
-                where = where .. " (" .. (difficulty or "dificultad sin verificar") .. ")"
+                local difficulty = ({ [1]=L["normal"], [2]=L["heroic"], [3]=L["normal and heroic"] })[s.diff]
+                where = where .. " (" .. (difficulty or L["difficulty unverified"]) .. ")"
             end
             local who = s.name and (" \226\128\148 " .. s.name) or ""
-            local pct = s.pct and string.format("  ~%.1f%% (aprox.)", s.pct) or ""
-            out[#out+1] = "|c" .. HEX.ember .. "Cae de:|r " .. where .. who .. pct .. lvl(s)
+            local pct = s.pct and string.format("  ~%.1f%% " .. L["(approx.)"], s.pct) or ""
+            out[#out+1] = "|c" .. HEX.ember .. L["Drops from:"] .. "|r " .. where .. who .. pct .. lvl(s)
                         .. season(s)
         elseif s.t == "quest" then
-            local side = s.side == "A" and " |cff4080ff[Alianza]|r"
-                      or s.side == "H" and " |cffff4040[Horda]|r" or ""
-            out[#out+1] = "|c" .. HEX.ember .. "Misión:|r "
+            local side = s.side == "A" and (" |cff4080ff" .. L["[Alliance]"] .. "|r")
+                      or s.side == "H" and (" |cffff4040" .. L["[Horde]"] .. "|r") or ""
+            out[#out+1] = "|c" .. HEX.ember .. L["Quest:"] .. "|r "
                         .. (s.name or ("#" .. tostring(s.id))) .. side .. lvl(s)
-                        .. (s.u and " · acceso sin verificar" or "") .. note(s) .. season(s)
+                        .. (s.u and (" · " .. L["access unverified"]) or "") .. note(s) .. season(s)
         elseif s.t == "vendor" then
-            local cost = s.cost and " · requiere moneda especial" or ""
+            local cost = s.cost and (" · " .. L["requires special currency"]) or ""
             local where = s.inst and (" \226\128\148 " .. s.inst)
                        or (s.ct and CONTENT_LABEL[s.ct] and (" \226\128\148 " .. CONTENT_LABEL[s.ct]))
                        or ""
-            out[#out+1] = "|c" .. HEX.ember .. "Vendedor:|r " .. (s.name or "?") .. where .. cost
-                .. (s.u and " · acceso sin verificar" or "") .. note(s) .. season(s)
+            out[#out+1] = "|c" .. HEX.ember .. L["Vendor:"] .. "|r " .. (s.name or "?") .. where .. cost
+                .. (s.u and (" · " .. L["access unverified"]) or "") .. note(s) .. season(s)
         elseif s.t == "craft" then
-            out[#out+1] = "|c" .. HEX.ember .. "Se fabrica:|r " .. (s.prof or "?")
-                        .. (s.skill and (" (habilidad " .. s.skill .. ")") or "")
+            out[#out+1] = "|c" .. HEX.ember .. L["Crafted:"] .. "|r " .. (s.prof or "?")
+                        .. (s.skill and (" " .. L["(skill %s)"]:format(s.skill)) or "")
         elseif s.t == "world" then
-            out[#out+1] = "|c" .. HEX.mist .. "Casa de subastas o drop de mundo|r"
+            out[#out+1] = "|c" .. HEX.mist .. L["Auction House or world drop"] .. "|r"
         end
     end
     return out
@@ -399,7 +400,7 @@ local function EqIcon_OnEnter(self)
     if not self.slotID then return end
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     if not GameTooltip:SetInventoryItem("player", self.slotID) then
-        GameTooltip:SetText("Ranura vacía"); GameTooltip:Show()
+        GameTooltip:SetText(L["Empty slot"]); GameTooltip:Show()
     end
 end
 
@@ -410,7 +411,7 @@ local function RecIcon_OnEnter(self)
     -- The link carries the roll. With a plain "item:<id>" the client drew the
     -- base item -- an armour value and an empty stat block -- and holding
     -- shift compared your gear against THAT, so a helm worth +31/+31/+47 read
-    -- as "-22 fuerza, -22 agilidad, -33 aguante". The client does the whole
+    -- as "-22 strength, -22 agility, -33 stamina". The client does the whole
     -- job correctly once it is told which item is meant.
     local link, variantId = ns.VariantLink(self.itemId, item)
     ns.tooltipSlot = self.slotName
@@ -483,7 +484,7 @@ function UI.SearchAuction(itemId)
                       and select(4, ns.Scoring.BestVariant(item, ns.weights)) or nil
     local name = ns.LocalName(itemId, item, variantId)
     if not (BrowseName and AuctionFrameBrowse_Search) then
-        ns.Print("no encuentro la búsqueda de la subasta en este cliente.")
+        ns.Print(L["Cannot find the Auction House search in this client."])
         return false
     end
     local ok = pcall(function()
@@ -493,7 +494,7 @@ function UI.SearchAuction(itemId)
         BrowseName:SetText(name)
         AuctionFrameBrowse_Search()
     end)
-    if not ok then ns.Print("la búsqueda en la subasta falló; escribe el nombre a mano.") end
+    if not ok then ns.Print(L["The Auction House search failed; type the name by hand."]) end
     UI.lastSearch = name
     return ok
 end
@@ -545,9 +546,9 @@ local function makeIcon(parent, x)
     return b
 end
 
--- "Maz BoP": the cheapest allowed way to get it, then how it binds. nil when
+-- "Dun BoP": the cheapest allowed way to get it, then how it binds. nil when
 -- the data names neither. Provenance never gets a guess.
-local SOURCE_TAG = { quest = "Mis", vendor = "Ven", craft = "Fab" }
+local SOURCE_TAG = { quest = L["Qst"], vendor = L["Vnd"], craft = L["Crf"] }
 local BIND_TAG = { [1] = "BoP", [2] = "BoE", [3] = "BoU" }
 local function sourceTag(item, id, filters)
     local route = S.AllowedRoute(item, filters)
@@ -555,8 +556,8 @@ local function sourceTag(item, id, filters)
     if route then
         where = SOURCE_TAG[route.t]
         if not where and route.t == "drop" then
-            where = route.ct == "raid" and "Raid" or route.ct == "dungeon" and "Maz"
-                    or route.ct == "pvp" and "PvP" or "Mun"
+            where = route.ct == "raid" and L["Raid"] or route.ct == "dungeon" and L["Dun"]
+                    or route.ct == "pvp" and L["PvP"] or L["Wld"]
         end
     end
     local bind = BIND_TAG[S.Binding(item, id) or -1]
@@ -655,7 +656,7 @@ local function makeRow(parent, y)
     row.priority = text(row, FONT_DATA, 10, C.zang)
     row.priority:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", X.slot, 3)
     row.priority:SetWidth(66); row.priority:SetJustifyH("LEFT")
-    row.priority:SetText("Empieza aquí")
+    row.priority:SetText(L["Start here"])
     row.priority:Hide()
 
     row.priorityBorder = {}
@@ -676,7 +677,7 @@ local function makeRow(parent, y)
     row.delta = text(row, FONT_DATA, 13, C.zang)
     row.delta:SetPoint("LEFT", row, "LEFT", X.delta, 0)
     row.delta:SetWidth(X.deltaW); row.delta:SetJustifyH("RIGHT")
-    row.delta:SetWordWrap(false)   -- "sin comparar" is one line, never two
+    row.delta:SetWordWrap(false)   -- "not compared" is one line, never two
     return row
 end
 
@@ -860,7 +861,7 @@ local function build()
 
     frame.weightsBtn = UI.Button(frame)
     frame.weightsBtn:SetSize(56, 19)
-    frame.weightsBtn:SetText("Pesos")
+    frame.weightsBtn:SetText(L["Weights"])
     frame.weightsBtn:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, -36)
     frame.weightsBtn:SetScript("OnClick", function()
         if ns.Profiles then ns.Profiles:Toggle() end
@@ -887,51 +888,49 @@ local function build()
         LevelBiSCharDB.targetLevel = math.max(1, ns:TargetLevel() - 1); UI:Refresh() end)
     stepBtn(">", 260, 22, function()
         LevelBiSCharDB.targetLevel = math.min(70, ns:TargetLevel() + 1); UI:Refresh() end)
-    stepBtn("Actual", 286, 50, function()
+    stepBtn(L["Current"], 286, 50, function()
         LevelBiSCharDB.targetLevel = nil; UI:Refresh() end)
     -- The rest of the level row, left to right: the goal, the dungeon
     -- difficulty and the phase. They sit on the stepper's row so the question
     -- "which level, for what, up to where" reads in one line; their widths come
     -- from their longest text.
-    local GOAL_W = buttonWidth("Objetivo: leveling")
-    local DIFFICULTY_W = buttonWidth("Mazmorras: normales")
-    local PHASE_W = buttonWidth("Fase: 5")
+    local GOAL_W = buttonWidth(L["Goal: leveling"])
+    local DIFFICULTY_W = buttonWidth(L["Dungeons: normal"])
+    local PHASE_W = buttonWidth(L["Phase: %s"]:format(5))
     local goalX = 286 + 50 + CONTROL_GAP
     local difficultyX = goalX + GOAL_W + 6
     local phaseX = difficultyX + DIFFICULTY_W + 6
 
     -- M-10: leveling or level 70, as one switch.
-    frame.goalBtn = stepBtn("Objetivo: leveling", goalX, GOAL_W, function()
+    frame.goalBtn = stepBtn(L["Goal: leveling"], goalX, GOAL_W, function()
         ns.SetGoal(LevelBiSCharDB.settings.goal == "endgame" and "leveling" or "endgame")
         UI:Refresh()
     end)
     frame.goalBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
-        GameTooltip:SetText("Objetivo")
-        GameTooltip:AddLine("Nivel 70 incluye raids, mazmorras heroicas y la fase "
-            .. "abierta, sin las exclusiones del leveling. Volver a Leveling "
-            .. "recupera tus filtros y tu nivel objetivo.", 0.8, 0.8, 0.8, true)
+        GameTooltip:SetText(L["Goal"])
+        GameTooltip:AddLine(L["Level 70 includes raids, heroic dungeons and the open phase, without the leveling exclusions. Going back to Leveling restores your filters and your target level."], 0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
     frame.goalBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-    frame.difficultyBtn = stepBtn("Mazmorras: todas", difficultyX, DIFFICULTY_W, function()
+    frame.difficultyBtn = stepBtn(L["Dungeons: all"], difficultyX, DIFFICULTY_W, function()
         local current = LevelBiSCharDB.settings.filters.dungeonMode
         ns.SetDungeonMode(not current and "normal" or current == "normal" and "heroic" or "all")
         UI:Refresh()
     end)
     frame.difficultyBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
-        GameTooltip:SetText("Dificultad de mazmorras")
-        GameTooltip:AddLine("Alterna todas, normales y heroicas. Una dificultad concreta exige una fuente confirmada; las otras procedencias conservan sus filtros.", 0.8, 0.8, 0.8, true)
+        GameTooltip:SetText(L["Dungeon difficulty"])
+        GameTooltip:AddLine(L["Cycles through all, normal and heroic. A specific difficulty requires a confirmed source; other sources keep their filters."], 0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
     frame.difficultyBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     -- M-7: the phase the window counts content up to, always on screen so it is
     -- clear what is and is not being offered. Click steps through 1 to 5. The
-    -- button says "Fase: N"; the full name of the phase is the tooltip's title.
-    frame.phaseBtn = stepBtn("Fase: 5", phaseX, PHASE_W, function()
+    -- button says "Phase: N"; the full name of the phase is the tooltip's title.
+    frame.phaseBtn = stepBtn(L["Phase: %s"]:format(5), phaseX, PHASE_W, function()
         local flt = LevelBiSCharDB.settings.filters
         local nextPhase = ((flt.maxPhase or S.CURRENT_PHASE) % 5) + 1
         ns.SetPhase(nextPhase)
@@ -940,10 +939,7 @@ local function build()
     frame.phaseBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
         GameTooltip:SetText(ns.PhaseLabel(LevelBiSCharDB.settings.filters.maxPhase))
-        GameTooltip:AddLine(("Hoy está abierta la fase %d. Cuenta el contenido "
-            .. "hasta la fase elegida; lo posterior (Zul'Aman, Sunwell, "
-            .. "Quel'Danas) no se ofrece. Un clic pasa a la siguiente; "
-            .. "/lbis phase auto vuelve a la actual."):format(S.CURRENT_PHASE),
+        GameTooltip:AddLine(L["Phase %d is open today. Content counts up to the chosen phase; anything later (Zul'Aman, Sunwell, Quel'Danas) is not offered. One click moves to the next; /lbis phase auto goes back to the current one."]:format(S.CURRENT_PHASE),
             0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
@@ -951,7 +947,7 @@ local function build()
 
     -- Where every control of the header lands, kept so the harness can check
     -- that none overlaps another and none leaves the window (it draws nothing).
-    -- The top row holds the title, the tabs and the class text; the Pesos
+    -- The top row holds the title, the tabs and the class text; the Weights
     -- button sits one row under it (y = -36, 19 px tall, so it ends at -55 and
     -- the level row starts at -56).
     UI.controlLayout = {}
@@ -974,23 +970,18 @@ local function build()
 
     -- Row 1: what content counts and what you can get at. Only the switches
     -- that change what a levelling character is offered; the score adjustments
-    -- live in the weights panel, and Mi armadura, Mi facción and Sin PvP are
+    -- live in the weights panel, and My armor, My faction and No PvP are
     -- reached with /lbis filter.
     local CHECKS = {
-        { "Sin raid", "noRaid", "Descarta lo que solo cae en raid." },
-        { "Instancias", "onlyInstances",
-          "Deja drops y vendedores de mazmorras o raids. Las recompensas "
-          .. "de misión dependen de la casilla Misiones." },
-        { "Misiones", "onlyQuests",
-          "Deja recompensas de misión. Puedes combinarla con Instancias." },
-        { "Mis profesiones", "myProfsOnly",
-          "Descarta lo que pide una profesión, o un nivel de ella, que no "
-          .. "tienes: lo fabricable y también los aparatos que piden la "
-          .. "habilidad para equiparse." },
-        { "Alcanzable", "onlyReachable",
-          "Deja lo que puedes conseguir: nivel mínimo, reputación suficiente, "
-          .. "misiones únicas sin hacer y fuentes de temporada solo con su evento "
-          .. "activo. El nivel del jefe es solo referencia." },
+        { L["No raid"], "noRaid", L["Excludes what only drops in raids."] },
+        { L["Instances"], "onlyInstances",
+          L["Keeps drops and vendors from dungeons or raids. Quest rewards depend on the Quests checkbox."] },
+        { L["Quests"], "onlyQuests",
+          L["Keeps quest rewards. You can combine it with Instances."] },
+        { L["My professions"], "myProfsOnly",
+          L["Excludes what needs a profession, or a level of one, that you don't have: craftable items and also gadgets that require the skill to be equipped."] },
+        { L["Reachable"], "onlyReachable",
+          L["Keeps what you can get: minimum level, enough reputation, unique quests not yet done, and seasonal sources only with their event active. The boss level is for reference only."] },
     }
     frame.checks = {}
     local cx = X.slot
@@ -1012,36 +1003,36 @@ local function build()
     -- ns.*Mode reads them and ns.Set*Mode writes them through ns.SetFilter.
     local BUTTON_CHAR_W, CYCLE_GAP = 8.1, 6
     local CYCLES = {
-        { prefix = "Tiradas", modes = ns.ROLL_MODES,
-          labels = { best = "mejor", ignore = "ignorar", exclude = "excluir" },
+        { prefix = L["Rolls"], modes = ns.ROLL_MODES,
+          labels = { best = L["Best"], ignore = L["Ignore"], exclude = L["Exclude"] },
           get = function() return ns.RollMode(flt()) end, set = ns.SetRollMode,
-          title = "Tiradas aleatorias",
+          title = L["Random rolls"],
           tips = {
-              "Qué hacer con los objetos de sufijo o propiedad aleatoria. Un clic pasa al siguiente estado.",
-              "Mejor: puntúa cada objeto con su mejor tirada. Es una suposición, pero así se ve lo que podría tocarte.",
-              "Ignorar: conserva los objetos, pero puntúa solo lo garantizado, incluido el DPS del arma. Puedes perder mejoras que dependen del sufijo.",
-              "Excluir: descarta por completo los objetos aleatorios. También pierdes armas cuyo DPS sí está garantizado.",
+              L["What to do with items that have a random suffix or property. One click moves to the next state."],
+              L["Best: scores each item on its best roll. It is an assumption, but it shows you what you could get."],
+              L["Ignore: keeps the items but scores only what is guaranteed, weapon DPS included. You may miss upgrades that depend on the suffix."],
+              L["Exclude: drops random items entirely. You also lose weapons whose DPS is guaranteed."],
           } },
-        { prefix = "Subasta", modes = ns.AUCTION_MODES,
-          labels = { include = "incluir", exclude = "excluir", only = "solo" },
+        { prefix = L["Auction House"], modes = ns.AUCTION_MODES,
+          labels = { include = L["Include"], exclude = L["Exclude"], only = L["Only"] },
           get = function() return ns.AuctionMode(flt()) end, set = ns.SetAuctionMode,
-          title = "Subasta",
+          title = L["Auction House"],
           tips = {
-              "Qué hacer con lo que se puede comprar en la subasta. Un clic pasa al siguiente estado.",
-              "Incluir: sin restricción por ligadura.",
-              "Excluir: descarta lo que se puede comprar en la subasta.",
-              "Solo: deja solo lo que alguien te puede vender, nada ligado al recoger. Tu lista de la compra.",
+              L["What to do with what can be bought on the Auction House. One click moves to the next state."],
+              L["Include: no restriction by binding."],
+              L["Exclude: drops what can be bought on the Auction House."],
+              L["Only: keeps only what someone can sell you, nothing Bind on Pickup. Your shopping list."],
           } },
-        { prefix = "Orden", modes = ns.SORT_MODES,
-          labels = { slot = "ranura", delta = "mejora", gold = "oro" },
+        { prefix = L["Order"], modes = ns.SORT_MODES,
+          labels = { slot = L["Slot"], delta = L["Upgrade"], gold = L["Gold"] },
           get = function() return ns.SortMode(LevelBiSCharDB.settings) end,
           set = ns.SetSortMode,
-          title = "Orden de las filas",
+          title = L["Row order"],
           tips = {
-              "No filtra: cambia el orden de la respuesta. Un clic pasa al siguiente estado.",
-              "Ranura: el orden del muñeco, agrupado en armadura, accesorios y armas.",
-              "Mejora: arriba, la ranura que más ganas. La línea marca el 70% de la mejora: ahí conviene gastar. Los anillos y los abalorios dejan de quedar juntos.",
-              "Oro: ordena por lo que ganas por cada moneda, con el precio que viste en la subasta. Lo que no tiene precio visto va al final: abre la subasta para que se recuerde.",
+              L["It does not filter: it changes the order of the answer. One click moves to the next state."],
+              L["Slot: the paperdoll order, grouped into armor, accessories and weapons."],
+              L["Upgrade: the slot you gain the most from is on top. The line marks 70% of the upgrade: that is where it pays to spend. Rings and trinkets no longer stay together."],
+              L["Gold: sorts by what you gain per coin, using the price you saw on the Auction House. Anything with no price seen goes last: open the Auction House so it is remembered."],
           } },
     }
     frame.cycles = {}
@@ -1078,10 +1069,8 @@ local function build()
     end)
     frame.filtersBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
-        GameTooltip:SetText("Filtros")
-        GameTooltip:AddLine("Muestra u oculta las casillas de filtros y los "
-            .. "botones de tiradas, subasta y orden. El resumen de al lado dice "
-            .. "qué está activo aunque estén ocultos.", 0.8, 0.8, 0.8, true)
+        GameTooltip:SetText(L["Filters"])
+        GameTooltip:AddLine(L["Shows or hides the filter checkboxes and the rolls, Auction House and order buttons. The summary next to it says what is active even when they are hidden."], 0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
     frame.filtersBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1093,7 +1082,7 @@ local function build()
     frame.filterSummary:SetJustifyH("LEFT")
     local reset = UI.Button(frame, true)   -- quiet: it must not compete with the answer
     reset:SetSize(136, 19)
-    reset:SetText("Restablecer filtros")
+    reset:SetText(L["Reset filters"])
     reset:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -14, SUMMARY_Y_OPEN + 6)
     reset:SetScript("OnClick", function() ns.ResetFilters(); UI:Refresh() end)
     frame.resetFilters = reset
@@ -1102,14 +1091,9 @@ local function build()
     summaryHit:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
         GameTooltip:SetText(ns.FilterSummary(flt()))
-        GameTooltip:AddLine("Los filtros de contenido se combinan con Subasta. "
-            .. "Instancias y Misiones se suman entre sí. Cada fila indica cuántas "
-            .. "opciones puede puntuar al abrir su detalle.", 0.8, 0.8, 0.8, true)
-        GameTooltip:AddLine("Restablecer filtros recupera la selección inicial. "
-            .. "Conserva los pesos y el orden de las filas.", 0.8, 0.8, 0.8, true)
-        GameTooltip:AddLine("Mi armadura, Mi facción y Sin PvP ya no tienen "
-            .. "casilla: /lbis filter los muestra y los cambia. Los ajustes de "
-            .. "puntaje están en Pesos.", 0.8, 0.8, 0.8, true)
+        GameTooltip:AddLine(L["Content filters combine with Auction House. Instances and Quests add to each other. Each row says how many options it can score when you open its detail."], 0.8, 0.8, 0.8, true)
+        GameTooltip:AddLine(L["Reset filters restores the initial selection. It keeps your weights and the row order."], 0.8, 0.8, 0.8, true)
+        GameTooltip:AddLine(L["My armor, My faction and No PvP no longer have a checkbox: /lbis filter shows and changes them. The score adjustments are in Weights."], 0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
     summaryHit:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1125,11 +1109,11 @@ local function build()
         h:SetText(label)
         return h
     end
-    colHead("RANURA", X.slot, 58)
-    colHead("LLEVAS", X.eqIcon, 54)
-    colHead("MEJORA DISPONIBLE", X.track, X.trackW)
-    colHead("RECOMENDADO", X.recIcon, X.delta - X.recIcon - 8)
-    colHead("GANAS", X.delta, X.deltaW, "RIGHT")
+    colHead(L["SLOT"], X.slot, 58)
+    colHead(L["EQUIPPED"], X.eqIcon, 54)
+    colHead(L["UPGRADE AVAILABLE"], X.track, X.trackW)
+    colHead(L["RECOMMENDED"], X.recIcon, X.delta - X.recIcon - 8)
+    colHead(L["GAIN"], X.delta, X.deltaW, "RIGHT")
 
     local rule = fill(frame, C.rule)
     frame.rule = rule
@@ -1138,10 +1122,10 @@ local function build()
     rule:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, SUMMARY_Y_OPEN - RULE_DY)
 
     -- Tabs (M-4) --------------------------------------------------------------
-    -- The window keeps one answer per screen. "Equipo" is the grid, "Mazmorras"
-    -- turns the same ranking into a suggestion of where to go ("¿Qué mazmorra
-    -- corro?" is the question the tab answers and heads its page), and
-    -- "Consumibles" is what to bring. The current tab is marked as selected, not
+    -- The window keeps one answer per screen. "Gear" is the grid, "Dungeons"
+    -- turns the same ranking into a suggestion of where to go ("Which dungeon
+    -- should I run?" is the question the tab answers and heads its page), and
+    -- "Consumables" is what to bring. The current tab is marked as selected, not
     -- disabled: every tab stays clickable and keeps its normal look.
     frame.tabs = {}
     local TAB_Y, TAB_GAP = -14, 4
@@ -1157,9 +1141,9 @@ local function build()
         tabX = tabX + w + TAB_GAP
         return b
     end
-    tabButton("Equipo", "gear")
-    tabButton("Mazmorras", "plan")
-    tabButton("Consumibles", "cons")
+    tabButton(L["Gear"], "gear")
+    tabButton(L["Dungeons"], "plan")
+    tabButton(L["Consumables"], "cons")
     -- The class and spec text is right-aligned against the close button; its
     -- width is an estimate (about 34 characters at most) so the harness can see
     -- it stays clear of the tabs.
@@ -1217,8 +1201,8 @@ local function build()
     frame.cutLine = fill(frame, C.ember)
     frame.cutLine:SetHeight(1)
     frame.cutLine:Hide()
-    -- No label beside the line. It used to carry "70% de la mejora — de aquí
-    -- para arriba", right-aligned above the line, which landed exactly on the
+    -- No label beside the line. It used to carry "70% of the upgrade — from here
+    -- up", right-aligned above the line, which landed exactly on the
     -- percentage of the row above it: the two overlapped and neither could be
     -- read. The sentence at the top of the window says the same thing and is
     -- always on screen whenever this line is, so the line is left to do the one
@@ -1262,10 +1246,10 @@ local function detailStats(best, equipped)
                                   .. (ns.StatLabel and ns.StatLabel(key) or key) .. "|r"
         end
     end
-    if #changes == 0 then return "Sin cambios de estadísticas directas." end
+    if #changes == 0 then return L["No direct stat changes."] end
     local shown = {}
     for i = 1, math.min(6, #changes) do shown[i] = changes[i] end
-    local tail = #changes > 6 and ("  ·  +" .. (#changes - 6) .. " más") or ""
+    local tail = #changes > 6 and ("  ·  +" .. (#changes - 6) .. " " .. L["more"]) or ""
     return table.concat(shown, "  ·  ") .. tail
 end
 
@@ -1284,58 +1268,62 @@ local function detailSource(item, filters)
     end
     if bestVisibleGate == nil or (gate and gate < bestVisibleGate) then
         if route then
-            local kind = route.t == "quest" and "Misión" or route.t == "vendor" and "Vendedor"
-                         or route.t == "craft" and "Fabricación"
-                         or route.ct == "dungeon" and "Mazmorra"
-                         or route.ct == "raid" and "Raid" or "Fuente registrada"
-            local difficulty = route.diff == 1 and " normal" or route.diff == 2 and " heroica" or ""
-            return "Origen: " .. kind .. difficulty
-                   .. (gate and gate > 0 and (" · acceso desde nivel " .. gate) or "")
-                   .. " · fuente sin nombre visible"
+            local kind = route.t == "quest" and L["Quest"] or route.t == "vendor" and L["Vendor"]
+                         or route.t == "craft" and L["Crafting"]
+                         or route.ct == "dungeon" and L["Dungeon"]
+                         or route.ct == "raid" and L["Raid"] or L["Recorded source"]
+            local difficulty = route.diff == 1 and (" " .. L["normal"])
+                               or route.diff == 2 and (" " .. L["heroic"]) or ""
+            return L["Source:"] .. " " .. kind .. difficulty
+                   .. (gate and gate > 0 and (" · " .. L["access from level %s"]:format(gate)) or "")
+                   .. " · " .. L["source with no visible name"]
                    .. (ns.Access and ns.Access.RouteNote(route)
                        and (" · " .. ns.Access.RouteNote(route)) or "")
                    .. (ns.Access and ns.Access.SeasonNote(route)
                        and (" · " .. ns.Access.SeasonNote(route)) or "")
         end
     end
-    if #lines == 0 then return "Origen: sin datos." end
+    if #lines == 0 then return L["Source: no data."] end
     -- SrcLines puts the unique-equipped warning before provenance. Skip that
     -- warning here: this line answers where the recommendation comes from.
     local firstSource = item.uniq and 2 or 1
     local raw = lines[firstSource] or lines[1]
     local first = raw:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
-    -- Keep source types such as Misión and Vendedor, but avoid two labels for drops.
-    first = first:gsub("^Cae de: ", ""):gsub(" — ", " · ")
-                 :gsub("%s+nivel (%d+)", " · nivel %1")
+    -- Keep source types such as Quest and Vendor, but avoid two labels for drops.
+    -- The words come from the same L entries srcLines used, so the stripping
+    -- works in whichever language the client runs.
+    local function pat(s) return (s:gsub("%p", "%%%0")) end
+    first = first:gsub("^" .. pat(L["Drops from:"]) .. " ", ""):gsub(" — ", " · ")
+                 :gsub("%s+" .. pat(L["level"]) .. " (%d+)", " · " .. L["level"] .. " %1")
     local remaining = #lines - firstSource
-    local more = remaining > 0 and ("  ·  " .. remaining .. " fuente(s) más en el tooltip") or ""
-    return "Origen: " .. first .. more
+    local more = remaining > 0 and ("  ·  " .. L["%d more source(s) in the tooltip"]:format(remaining)) or ""
+    return L["Source:"] .. " " .. first .. more
 end
 
 local function detailReason(slotName, best, filters)
     if best.fallback == "wandDps" then
-        return "Por qué: la varita con mayor DPS disponible; sus efectos no se tasan."
+        return L["Why: the wand with the highest DPS available; its effects are not priced."]
     end
     local detail = S.Explain(best.item, ns.weights, S.SLOTS[slotName].slot)
-    local reason = "Por qué: mayor puntaje con tus pesos"
+    local reason = L["Why: highest score with your weights"]
     for _, part in ipairs(detail and detail.parts or {}) do
         -- The stats of the ideal gems are not the item's own: they are named
-        -- apart below, so "destaca" never credits the item with a gem's stat.
+        -- apart below, so "stands out" never credits the item with a gem's stat.
         if part.points > 0 and part.origin ~= "socket" then
             local label = ns.StatLabel and ns.StatLabel(part.key) or part.key
-            reason = reason .. ("; destaca %s (%+.0f puntos)"):format(label, part.points)
+            reason = reason .. L["; %s stands out (%+.0f points)"]:format(label, part.points)
             break
         end
     end
     if detail and (detail.socketPoints or 0) >= 0.5 then
-        reason = reason .. (" · gemas ideales %+.0f"):format(detail.socketPoints)
+        reason = reason .. (" · " .. L["ideal gems %+.0f"]:format(detail.socketPoints))
     end
     local item = best.item
     if item.sg or item.pg then
         if filters.noRandom then
-            reason = reason .. " · tirada ignorada"
+            reason = reason .. " · " .. L["roll ignored"]
         elseif select(4, S.BestVariant(item, ns.weights)) then
-            reason = reason .. " · mejor tirada supuesta"
+            reason = reason .. " · " .. L["best roll assumed"]
         end
     end
     return reason
@@ -1343,7 +1331,7 @@ end
 
 -- M-11. The lifetime sweep scores every future level. Where the client has a
 -- clock and C_Timer, it runs in slices of at most LIFETIME_BUDGET_MS and the
--- detail says "calculando…" until it finishes; otherwise it runs at once.
+-- detail says "calculating…" until it finishes; otherwise it runs at once.
 local LIFETIME_BUDGET_MS = 16
 local function clock()
     if type(debugprofilestop) == "function" then return debugprofilestop() end
@@ -1360,7 +1348,7 @@ local function runJob(job, budget)
 end
 
 local function detailLifetime(slotName, best, level, filters)
-    if level >= 70 then return "Vida útil: nivel 70; no hay niveles posteriores." end
+    if level >= 70 then return L["Lifetime: level 70; there are no later levels."] end
     local job = S.LifetimeJob(slotName, best.id, level, ns.weights, ns.playerClass,
                               ns.playerLevel, filters)
     if not job.done then
@@ -1382,24 +1370,24 @@ local function detailLifetime(slotName, best, level, filters)
                     end
                     C_Timer.After(0, continue)
                 end
-                return "Vida útil: calculando…"
+                return L["Lifetime: calculating…"]
             end
         else
             S.LifetimeStep(job, 100)
         end
     end
     local changed, current = job.level, job.current
-    if not current then return "Vida útil: vuelve a calcular la recomendación." end
+    if not current then return L["Lifetime: recompute the recommendation."] end
     if changed then
-        return ("Vida útil: primer cambio de recomendación al nivel %d."):format(changed)
+        return L["Lifetime: first recommendation change at level %d."]:format(changed)
     end
-    return "Vida útil: sigue primero hasta el nivel 70."
+    return L["Lifetime: stays first until level 70."]
 end
 
 -- The line under the detail: the best alternative without a random roll and
 -- what choosing it gives up against the recommendation. Returns the three
 -- pieces the detail draws (lead, item name, tail) and the item to hover. The
--- amounts are always "against the recommendation"; "no mejora tu equipo" is the
+-- amounts are always "against the recommendation"; "does not improve your gear" is the
 -- only mention of what is worn.
 local MINUS = "-"   -- ASCII: FRIZQT__ may lack U+2212 and draw a box
 
@@ -1411,9 +1399,9 @@ end
 
 local function detailAlternative(slotName, res)
     local lead = {
-        same = "La recomendación ya tiene estadísticas fijas",
-        none = "Sin alternativa fija con estos filtros",
-        pending = "Cargando equipo…",
+        same = L["The recommendation already has fixed stats"],
+        none = L["No fixed alternative with these filters"],
+        pending = L["Loading equipment…"],
     }
     if res.state ~= "ok" then
         return lead[res.state] or lead.none, "", "", nil
@@ -1422,12 +1410,12 @@ local function detailAlternative(slotName, res)
     local qc = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[alt.item.q or 1]
     local name = (qc and qc.hex or "|cffffffff") .. ns.LocalName(alt.id, alt.item) .. "|r"
     local points = res.diff and math.floor(math.abs(res.diff) + 0.5) or 0
-    local amount = signed(res.diff, "") .. (points == 1 and " punto" or " puntos")
+    local amount = signed(res.diff, "") .. " " .. (points == 1 and L["point"] or L["points"])
     if res.pct then amount = amount .. ", " .. signed(res.pct * 100, "%") end
-    local tail = "(" .. (res.altBothHands and "a dos manos, " or "") .. amount
-                 .. " respecto a la recomendación)"
-    if res.noUpgrade then tail = tail .. " · no mejora tu equipo" end
-    return "Sin tirada aleatoria:", name, tail, alt
+    local tail = "(" .. (res.altBothHands and (L["two-hand"] .. ", ") or "") .. amount
+                 .. " " .. L["vs the recommendation"] .. ")"
+    if res.noUpgrade then tail = tail .. " · " .. L["does not improve your gear"] end
+    return L["No random roll:"], name, tail, alt
 end
 
 -- Reputation or a one-time quest changed (Access.lua). The sweep in progress
@@ -1455,7 +1443,7 @@ end
 -- (16 ms for a refresh) is compared with the real thing rather than a guess.
 function UI.Perf()
     local c = clock()
-    if not c then ns.Print("este cliente no expone debugprofilestop.") return end
+    if not c then ns.Print(L["This client does not expose debugprofilestop."]) return end
     local function timed(fn)
         local t0 = clock()
         fn()
@@ -1482,14 +1470,14 @@ function UI.Perf()
     local function line(name, ms, budget)
         local mark = (not budget or ms <= budget) and "|cff40ff40" or "|cffff6060"
         ns.Print(("  %-22s %s%.1f ms|r%s"):format(name, mark, ms,
-            budget and ("  (presupuesto %d)"):format(budget) or ""))
+            budget and L["  (budget %d)"]:format(budget) or ""))
     end
-    ns.Print("rendimiento medido en este cliente:")
-    line("clasificar 17 ranuras", result.rank, 16)
-    if result.refresh then line("refrescar la ventana", result.refresh, 16) end
-    line("vida útil (barrido)", result.lifetime, nil)
-    line("plan de mazmorras", result.plan, nil)
-    ns.Print("  la vida útil se reparte en pasos de 16 ms si no cabe en uno")
+    ns.Print(L["Performance measured on this client:"])
+    line(L["rank 17 slots"], result.rank, 16)
+    if result.refresh then line(L["refresh the window"], result.refresh, 16) end
+    line(L["lifetime (sweep)"], result.lifetime, nil)
+    line(L["dungeon plan"], result.plan, nil)
+    ns.Print(L["  lifetime is spread over 16 ms steps if it does not fit in one"])
 end
 ns.ExtraCmd = ns.ExtraCmd or {}
 ns.ExtraCmd.perf = function() UI.Perf() end
@@ -1512,7 +1500,7 @@ function UI.LayoutHeader()
     end
     frame.filtersBtn:ClearAllPoints()
     frame.filtersBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, sy + 4)
-    frame.filtersBtn:SetText(open and "Ocultar filtros" or "Mostrar filtros")
+    frame.filtersBtn:SetText(open and L["Hide filters"] or L["Show filters"])
     frame.filterSummary:ClearAllPoints()
     frame.filterSummary:SetPoint("TOPLEFT", frame, "TOPLEFT", 130, sy)
     frame.resetFilters:ClearAllPoints()
@@ -1534,9 +1522,10 @@ end
 function UI.HintText()
     if UI.tab == "plan" or UI.tab == "cons" then return "" end
     local first = UI.AuctionOpen()
-        and "Clic: buscar en la subasta  \194\183  Alt-clic: detalle"
-        or "Clic: detalle"
-    return first .. "  \194\183  Shift-clic: enlazar en el chat  \194\183  Ctrl-clic: probar"
+        and (L["Click: search the Auction House"] .. "  \194\183  " .. L["Alt-click: details"])
+        or L["Click: details"]
+    return first .. "  \194\183  " .. L["Shift-click: link in chat"]
+           .. "  \194\183  " .. L["Ctrl-click: dressing room"]
 end
 
 function UI.RefreshHint()
@@ -1564,12 +1553,11 @@ function UI:RefreshConsumables(tl)
     local lines = ns.ConsumableLines(tl)
     UI.lastConsumables = lines
     local lede = (#lines > 0)
-        and ("Para el nivel %d, con tus pesos: %s."):format(tl, (lines[1].head:gsub("^[^:]*: ", "")))
-        or "Ningún consumible puntúa con tus pesos a este nivel."
+        and L["For level %d, with your weights: %s."]:format(tl, (lines[1].head:gsub("^[^:]*: ", "")))
+        or L["No consumable scores with your weights at this level."]
     frame.lede:SetText(lede)
     UI.lastLede = lede
-    frame.plan.title:SetText("Lo mejor para tu especialización y el nivel objetivo. "
-        .. "Los pesos puntúan el efecto; las pociones, lo que restauran.")
+    frame.plan.title:SetText(L["The best for your spec and target level. Weights score the effect; potions, what they restore."])
     local texts = {}
     for i = 1, PLAN_ROWS do
         local r, l = frame.plan.rows[i], lines[i]
@@ -1591,19 +1579,18 @@ function UI:RefreshPlan(tl, filters)
     local lines = {}
     local lede
     if not plan then
-        lede = "Cargando equipo… La sugerencia aparecerá al completar los datos."
+        lede = L["Loading equipment… The suggestion will appear when the data is complete."]
         plan = {}
     elseif #plan == 0 then
-        lede = "Con estos filtros no hay mazmorras que te mejoren a este nivel."
+        lede = L["With these filters no dungeon would upgrade you at this level."]
     else
         local first = plan[1]
-        lede = ("Podrías correr %s: %d %s, el %.0f%% de tu mejora posible.")
-            :format(first.inst, first.slots, first.slots == 1 and "ranura" or "ranuras", first.share)
+        lede = L["You could run %s: %d %s, %.0f%% of your possible upgrade."]
+            :format(first.inst, first.slots, first.slots == 1 and L["slot"] or L["slots"], first.share)
     end
     frame.lede:SetText(lede)
     UI.lastLede = lede
-    frame.plan.title:SetText(("¿Qué mazmorra corro? Sugerencias para el nivel %d, según tus filtros. "
-        .. "Cada una suma lo mejor que suelta por ranura."):format(tl))
+    frame.plan.title:SetText(L["Which dungeon should I run? Level %d suggestions from your filters. Each sums the best it drops per slot."]:format(tl))
     for i = 1, PLAN_ROWS do
         local r, p = frame.plan.rows[i], plan[i]
         if p then
@@ -1615,9 +1602,9 @@ function UI:RefreshPlan(tl, filters)
                 parts[#parts + 1] = ("%s: %s"):format(SLOT_LABEL[it.slot] or it.slot,
                     (ns.LocalName(it.id, item, variantId)))
             end
-            local more = #p.items > 3 and ("  ·  +%d más"):format(#p.items - 3) or ""
-            r.head:SetText(("%d. %s  \194\183  %d %s  \194\183  %.0f%% de tu mejora"):format(
-                i, p.inst, p.slots, p.slots == 1 and "ranura" or "ranuras", p.share))
+            local more = #p.items > 3 and L["  ·  +%d more"]:format(#p.items - 3) or ""
+            r.head:SetText(L["%d. %s  \194\183  %d %s  \194\183  %.0f%% of your upgrade"]:format(
+                i, p.inst, p.slots, p.slots == 1 and L["slot"] or L["slots"], p.share))
             r.items:SetText(table.concat(parts, "  \194\183  ") .. more)
             r.head:Show(); r.items:Show()
         else
@@ -1647,18 +1634,18 @@ function UI:Refresh()
 
     frame.who:SetText(("%s %s  \194\183  %s"):format(
         ns.playerRace or "?", ns.playerClass or "?", ns.activeSpec or "?"))
-    frame.lvlLabel:SetText(("Nivel %d%s"):format(
-        tl, LevelBiSCharDB.targetLevel and "" or " (actual)"))
+    frame.lvlLabel:SetText(LevelBiSCharDB.targetLevel and L["Level %d"]:format(tl)
+        or L["Level %d (yours)"]:format(tl))
     UIDropDownMenu_SetText(frame.specDD, ns.activeSpec or "?")
     for _, cb in ipairs(frame.checks or {}) do cb:sync() end
     for _, b in ipairs(frame.cycles or {}) do b:sync() end
     UI.lastFilterSummary = ns.FilterSummary(filters)
-    frame.difficultyBtn:SetText("Mazmorras: " .. (filters.dungeonMode == "normal" and "normales"
-        or filters.dungeonMode == "heroic" and "heroicas" or "todas"))
+    frame.difficultyBtn:SetText(filters.dungeonMode == "normal" and L["Dungeons: normal"]
+        or filters.dungeonMode == "heroic" and L["Dungeons: heroic"] or L["Dungeons: all"])
     frame.filterSummary:SetText(UI.lastFilterSummary)
-    frame.phaseBtn:SetText("Fase: " .. (filters.maxPhase or S.CURRENT_PHASE))
+    frame.phaseBtn:SetText(L["Phase: %s"]:format(filters.maxPhase or S.CURRENT_PHASE))
     frame.goalBtn:SetText(LevelBiSCharDB.settings.goal == "endgame"
-        and "Objetivo: nivel 70" or "Objetivo: leveling")
+        and L["Goal: level 70"] or L["Goal: leveling"])
 
     for key, b in pairs(frame.tabs or {}) do
         b:SetSelected(key == (UI.tab or "gear"))
@@ -1879,16 +1866,16 @@ function UI:Refresh()
             local pct = d.pct
             if d.state == "pending" or (d.state == "unpriceable" and not fallback) then
                 setTrack(row.track, 0, false)
-                row.delta:SetText(d.state == "pending" and "cargando" or "sin comparar")
+                row.delta:SetText(d.state == "pending" and L["loading"] or L["not compared"])
                 row.delta:SetTextColor(C.label[1], C.label[2], C.label[3])
             elseif eq <= 0 then
-                row.delta:SetText("nuevo")
+                row.delta:SetText(L["new"])
                 row.delta:SetTextColor(C.zang[1], C.zang[2], C.zang[3])
             elseif pct and pct > 0.5 then
                 row.delta:SetText(string.format("+%.0f%%", pct))
                 row.delta:SetTextColor(C.zang[1], C.zang[2], C.zang[3])
             else
-                row.delta:SetText("al día")
+                row.delta:SetText(L["up to date"])
                 row.delta:SetTextColor(C.label[1], C.label[2], C.label[3])
             end
         else
@@ -1897,38 +1884,38 @@ function UI:Refresh()
             row.recHit.slotName = name
             row.recIcon.tex:SetTexture("Interface\\PaperDoll\\UI-Backpack-EmptySlot")
             row.recIcon.tex:SetDesaturated(true)
-            -- An empty row says what to do about it. "Sin coincidencias" is
+            -- An empty row says what to do about it. "No matches" is
             -- the search talking about itself; the filter that emptied the row
             -- is the useful thing to name.
             -- The off hand is a special case of empty: it is not that
             -- nothing fits, it is that the recommended weapon needs both
-            -- hands. Saying "prueba con menos filtros" there would send you
+            -- hands. Saying "try fewer filters" there would send you
             -- looking for something that cannot exist.
             local twoHanded = name == "offhand" and ranked.mainhand
                               and ranked.mainhand[1]
                               and ranked.mainhand[1].item.slot == "INVTYPE_2HWEAPON"
             -- The third reason a row is empty: everything in the slot is
             -- there for an effect, not for stats. A paladin's librams and a
-            -- druid's idols are the entire slot. "Prueba con menos filtros"
+            -- druid's idols are the entire slot. "Try fewer filters"
             -- would be advice that cannot work.
             local unpriceable = not twoHanded and S.SlotIsUnpriceable
                                 and S.SlotIsUnpriceable(name, tl, ns.weights,
                                     ns.playerClass, ns.playerLevel, filters)
-            local emptyText = "Nada mejor; prueba con menos filtros"
+            local emptyText = L["Nothing better; try fewer filters"]
             if twoHanded then
-                emptyText = "La ocupa el arma a dos manos"
+                emptyText = L["Taken by the two-hand weapon"]
             elseif unpriceable then
-                emptyText = "Aquí el valor es un efecto, no estadísticas"
+                emptyText = L["Here the value is an effect, not stats"]
             elseif filters.onlyAH and (filters.onlyInstances or filters.onlyQuests) then
-                emptyText = "Nada comprable con estas fuentes; revisa los filtros"
+                emptyText = L["Nothing buyable from these sources; check filters"]
             elseif filters.onlyAH then
-                emptyText = "Nada comprable a este nivel"
+                emptyText = L["Nothing buyable at this level"]
             elseif filters.onlyInstances and filters.onlyQuests then
-                emptyText = "Nada en instancias ni misiones todavía"
+                emptyText = L["Nothing in instances or quests yet"]
             elseif filters.onlyInstances then
-                emptyText = "Nada en instancias todavía"
+                emptyText = L["Nothing in instances yet"]
             elseif filters.onlyQuests then
-                emptyText = "Nada en misiones todavía"
+                emptyText = L["Nothing in quests yet"]
             end
             row.recName:SetText("|c" .. HEX.label .. emptyText .. "|r")
             row.recName:SetWidth(X.nameWide)
@@ -1944,14 +1931,14 @@ function UI:Refresh()
     if detailY and UI.expandedSlot then
         local d = data[UI.expandedSlot]
         local best, link = d.best, GetInventoryItemLink("player", d.def.slot)
-        local equippedName = "Ranura vacía"
+        local equippedName = L["Empty slot"]
         if link then
-            equippedName = GetItemInfo(link) or "Cargando equipo…"
+            equippedName = GetItemInfo(link) or L["Loading equipment…"]
         end
         local recName = ns.LocalName(best.id, best.item, select(4, S.BestVariant(best.item, ns.weights)))
-        frame.detail.items:SetText("Sustituye: " .. equippedName)
-        local statsText = "Cambios: " .. detailStats(best, d.eqItem)
-        if d.state == "pending" then statsText = "Cargando estadísticas del equipo…" end
+        frame.detail.items:SetText(L["Replaces: %s"]:format(equippedName))
+        local statsText = L["Changes: %s"]:format(detailStats(best, d.eqItem))
+        if d.state == "pending" then statsText = L["Loading equipment stats…"] end
         local sourceText = detailSource(best.item, filters)
         local pid, roll = ns.VariantIdentity(best.id, best.item)
         local priceLine = pid and ns.Prices and ns.Prices.Text(pid, roll)
@@ -2017,31 +2004,31 @@ function UI:Refresh()
 
     local lede
     if hasPending then
-        lede = "Cargando equipo… La prioridad se actualizará al completar los datos."
+        lede = L["Loading equipment… The priority will update when the data is complete."]
     elseif totalGain <= 0 and hasFallback then
-        lede = "Sin mejora ponderada; las varitas se ordenan por DPS."
+        lede = L["No weighted upgrade; wands are sorted by DPS."]
     elseif totalGain <= 0 then
-        lede = "Estás al día. Sube el nivel objetivo para ver qué viene."
+        lede = L["You are up to date. Raise the target level to see what comes next."]
     elseif byGold then
-        lede = "Ordenado por mejora por oro visto: arriba, lo que más rinde por moneda."
+        lede = L["Sorted by upgrade per gold seen: the best return per coin is on top."]
     elseif sorted and cutAfter and cutAfter <= 3 then
         local list = slotWord(order[1])
         for i = 2, cutAfter do
-            list = list .. ((i == cutAfter) and " y " or ", ") .. slotWord(order[i])
+            list = list .. ((i == cutAfter) and L[" and "] or ", ") .. slotWord(order[i])
         end
-        lede = ("Empieza por %s: ahí está el 70%% de la mejora."):format(list)
+        lede = L["Start with %s: that is where 70%% of the upgrade is."]:format(list)
     elseif sorted and cutAfter then
-        lede = ("Las primeras %d ranuras son el 70%% de la mejora."):format(cutAfter)
+        lede = L["The first %d slots are 70%% of the upgrade."]:format(cutAfter)
     else
         -- No percentage here on purpose. This names the slot that gains the
-        -- most in absolute terms, and the "GANAS" column shows percentages: a
+        -- most in absolute terms, and the "GAIN" column shows percentages: a
         -- number in the sentence invited the reader to compare the two and
         -- conclude the window was contradicting itself, because the biggest
         -- gain and the biggest percentage are usually different rows.
         local pct = data[topName].pct
         lede = (pct and pct > 0.5)
-            and ("Empieza por %s: es la ranura que más suma."):format(slotWord(topName))
-            or  ("Empieza por %s: la llevas vacía."):format(slotWord(topName))
+            and L["Start with %s: it gains the most."]:format(slotWord(topName))
+            or  L["Start with %s: it is empty."]:format(slotWord(topName))
     end
     frame.lede:SetText(lede)
     UI.lastLede = lede
@@ -2116,7 +2103,7 @@ local function createMinimapButton()
     b:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("LevelBiS")
-        GameTooltip:AddLine("|cffffffffClic:|r abrir   |cffffffffArrastrar:|r mover",
+        GameTooltip:AddLine(L["|cffffffffClick:|r open   |cffffffffDrag:|r move"],
                             0.8, 0.8, 0.8)
         GameTooltip:Show()
     end)

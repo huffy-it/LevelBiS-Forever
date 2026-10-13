@@ -3,6 +3,7 @@
 -- Everything downstream (Scoring, Data, UI) uses the canonical keys below.
 ------------------------------------------------------------------------------
 local ADDON, ns = ...
+local L = ns.L
 
 -- Canonical stat keys. The pipeline normalizes every source stat to one of
 -- these; presets and item.st tables only ever use these keys.
@@ -295,9 +296,9 @@ end
 -- Parse a Pawn scale string into { weights=table, name=str, class=str, spec=str }.
 -- Returns nil, errmsg on failure. Tolerant of spacing and unknown stats.
 function W.ImportPawn(str)
-    if type(str) ~= "string" then return nil, "not a string" end
+    if type(str) ~= "string" then return nil, L["not a string"] end
     local body = str:match("%(%s*Pawn%s*:%s*v%d+%s*:%s*(.-)%s*%)")
-    if not body then return nil, "not a Pawn v1 string" end
+    if not body then return nil, L["not a Pawn v1 string"] end
     local name = body:match('^%s*"(.-)"') or "Imported"
     local class = body:match("Class%s*=%s*(%a+)")
     local spec  = body:match("Spec%s*=%s*(%a+)")
@@ -311,7 +312,7 @@ function W.ImportPawn(str)
             ignored[#ignored + 1] = stat
         end
     end
-    if not found then return nil, "no recognized stats" end
+    if not found then return nil, L["no recognized stats"] end
     table.sort(ignored)
     return { weights = weights, name = name, class = class, spec = spec,
              ignored = ignored }

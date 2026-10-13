@@ -1,11 +1,12 @@
 -- Tooltip.lua ---------------------------------------------------------------
 -- Global item marking: on any item tooltip (bags, loot, AH, vendor, chat
 -- links), if the item is usable by the active spec, append its rank within its
--- slot for the current target level:  "LevelBiS: #N de la ranura para
--- <spec> a nivel <X>".
+-- slot for the current target level:  "LevelBiS: #N in slot for
+-- <spec> at level <X>".
 -- Toggle with the "Tooltip tags" checkbox or LevelBiSCharDB.settings.tooltip.
 ------------------------------------------------------------------------------
 local ADDON, ns = ...
+local L = ns.L
 local S = ns.Scoring
 
 local function rankColor(rank)
@@ -32,7 +33,7 @@ function ns.MarkFor(link)
     -- One exception, and it is the addon's own link: when the roll on the link
     -- is the very roll this item was ranked as, the database answer is the
     -- right one and the rank line is what the reader wants. Without this, the
-    -- window's own hover lost "lo mejor de la ranura" the moment the link
+    -- window's own hover lost "best in slot" the moment the link
     -- started carrying the suffix.
     local linkSuffix = S.LinkSuffix(link)
     local dbItem = ns.db[id]
@@ -45,12 +46,12 @@ function ns.MarkFor(link)
         -- Rank 1 gets a word, not a number: "the best one" is the answer,
         -- "#1" is the answer's index. The score is left out on purpose -- the
         -- window and /lbis slot are where numbers belong.
-        local where = (rank == 1) and "lo mejor de la ranura"
-                      or ("%s#%d|r de la ranura"):format(rankColor(rank), rank)
+        local where = (rank == 1) and L["best in slot"]
+                      or L["%s#%d|r in slot"]:format(rankColor(rank), rank)
         if slotName == "mainhand" or slotName == "offhand" then
-            where = where .. (slotName == "mainhand" and " principal" or " secundaria")
+            where = where .. (slotName == "mainhand" and L[" (main hand)"] or L[" (off hand)"])
         end
-        return ("|cff33ff99LevelBiS:|r %s%s para %s a nivel %d")
+        return ("|cff33ff99LevelBiS:|r " .. L["%s%s for %s at level %d"])
             :format((rank == 1) and rankColor(1) or "", where,
                     ns.activeSpec or "?", effLevel)
     end
@@ -77,9 +78,9 @@ function ns.MarkFor(link)
     local score = S.ScoreForSlot(live, ns.weights, S.SLOTS[slotName].slot, effLevel)
     if score <= 0 then return nil end
     local eq, _, _, _, state = S.EquippedScore(S.SLOTS[slotName].slot, ns.weights, effLevel)
-    if state == "pending" then return "|cff33ff99LevelBiS:|r Cargando equipo…" end
+    if state == "pending" then return "|cff33ff99LevelBiS:|r " .. L["Loading equipment…"] end
     if state == "unpriceable" then
-        return "|cff33ff99LevelBiS:|r El equipo actual no tiene un valor comparable."
+        return "|cff33ff99LevelBiS:|r " .. L["Your current gear has no comparable value."]
     end
     eq = eq or 0
     local abs, pct = S.Delta(score, eq)
@@ -88,16 +89,16 @@ function ns.MarkFor(link)
     -- against what you are wearing. One verdict, no arithmetic.
     local verdict
     if state == "empty" then
-        verdict = "|cff40ff40mejor que nada: llevas la ranura vacía|r"
+        verdict = "|cff40ff40" .. L["better than nothing: your slot is empty"] .. "|r"
     elseif abs > 0.5 then
-        verdict = ("|cff40ff40mejora%s sobre lo que llevas|r")
-            :format(pct and (" de " .. string.format("%.0f%%", pct)) or "")
+        verdict = ("|cff40ff40" .. L["upgrade%s over what you have equipped"] .. "|r")
+            :format(pct and L[" of %.0f%%"]:format(pct) or "")
     elseif abs < -0.5 then
-        verdict = "|cffff6060peor que lo que llevas|r"
+        verdict = "|cffff6060" .. L["worse than what you have equipped"] .. "|r"
     else
-        verdict = "|cff808080igual que lo que llevas|r"
+        verdict = "|cff808080" .. L["same as what you have equipped"] .. "|r"
     end
-    local origin = live._rolled and "con esta tirada" or "fuera de la base"
+    local origin = live._rolled and L["with this roll"] or L["outside the database"]
     return ("|cff33ff99LevelBiS:|r %s  |cff808080(%s)|r"):format(verdict, origin)
 end
 
@@ -179,22 +180,26 @@ local function addMark(tt)
             if okSrc and type(lines) == "table" then
                 for i = 1, math.min(#lines, 3) do tt:AddLine(lines[i], 1, 1, 1, true) end
                 if #lines > 3 then
-                    tt:AddLine(("|cff808080y %d sitio(s) más|r"):format(#lines - 3))
+                    tt:AddLine(("|cff808080" .. L["and %d more source(s)"] .. "|r"):format(#lines - 3))
                 end
             end
         end
     end
     -- M-15: why it is an upgrade, in one line. The live path already says so in
     -- its own verdict, so this is only for what that line leaves unsaid.
-    if not text:find("sobre lo que llevas", 1, true) and ns.ReasonLine then
+    if not text:find(L["over what you have equipped"], 1, true) and ns.ReasonLine then
         local okReason, reason = pcall(ns.ReasonLine, link)
         if okReason and reason then tt:AddLine("|cff808080" .. reason .. "|r", 1, 1, 1, true) end
     end
     -- M-1: the reward this addon would pick for the open quest.
     local pickId = tonumber(link:match("item:(%d+)"))
     if pickId and ns.questPick and ns.questPick[pickId] then
+        -- Advisor's line is L["Choose %s: %s."]; its start, up to the first %s,
+        -- is what the pattern anchors on, in whichever language is loaded.
+        local lead = (L["Choose %s: %s."]:match("^(.-)%%s") or ""):gsub("%p", "%%%0")
+        local this = L["Choose this one:"]:gsub("%%", "%%%%")
         tt:AddLine("|cff33ff99" .. ns.questPick[pickId]:gsub("|H.-|h(.-)|h", "%1")
-                   :gsub("^Elige [^:]*:", "Elige esta:") .. "|r")
+                   :gsub("^" .. lead .. "[^:]*:", this) .. "|r")
     end
     -- The price this addon has seen for it, if the auction house ever showed
     -- one. Never a guess: no sighting, no line.

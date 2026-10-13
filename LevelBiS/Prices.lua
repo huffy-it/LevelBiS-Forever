@@ -1,6 +1,6 @@
 -- Prices.lua ----------------------------------------------------------------
 -- CS-5. Remembers the cheapest buyout the auction house has shown you for an
--- item, so the window can say "visto a 12g hace 2 días" and sort by gain per
+-- item, so the window can say "seen at 12g 2 days ago" and sort by gain per
 -- gold.
 --
 -- This is a memory, not a scanner. Only what already passed across your screen
@@ -27,6 +27,7 @@
 -- which this file no longer writes.
 ------------------------------------------------------------------------------
 local ADDON, ns = ...
+local L = ns.L
 local S = ns.Scoring
 
 local KEEP_SECONDS = 30 * 24 * 3600   -- a month-old price is not a price
@@ -250,20 +251,20 @@ function P.Money(copper)
 end
 
 function P.Age(seconds)
-    if seconds < 3600 then return "hace menos de una hora" end
+    if seconds < 3600 then return L["less than an hour ago"] end
     if seconds < 86400 then
         local h = math.floor(seconds / 3600)
-        return h == 1 and "hace 1 hora" or ("hace %d horas"):format(h)
+        return h == 1 and L["1 hour ago"] or L["%d hours ago"]:format(h)
     end
     local d = math.floor(seconds / 86400)
-    return d == 1 and "hace 1 día" or ("hace %d días"):format(d)
+    return d == 1 and L["1 day ago"] or L["%d days ago"]:format(d)
 end
 
--- "visto a 12g hace 2 días", or nil.
+-- "seen at 12g 2 days ago", or nil.
 function P.Line(itemId, rollId)
     local copper, age = P.Get(itemId, rollId)
     if not copper then return nil end
-    return ("visto a %s %s"):format(P.Money(copper), P.Age(age))
+    return L["seen at %s %s"]:format(P.Money(copper), P.Age(age))
 end
 
 -- What to show where the price goes: the line when there is a price, and for a
@@ -275,7 +276,7 @@ function P.Text(itemId, rollId)
     local line = P.Line(itemId, rollId)
     if line then return line end
     if rollId ~= nil and kindOf(itemId) == "random" and keyFor(itemId, rollId) then
-        return "Precio de esta tirada: todavía sin observar"
+        return L["Price for this roll: not seen yet"]
     end
     return nil
 end

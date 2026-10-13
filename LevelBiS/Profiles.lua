@@ -9,6 +9,7 @@
 -- behind an "add stat" menu would bury it.
 ------------------------------------------------------------------------------
 local ADDON, ns = ...
+local L = ns.L
 local S = ns.Scoring
 local W = ns.Weights
 local UI = ns.UI
@@ -20,33 +21,33 @@ local C = UI.C
 local FONT_DISPLAY, FONT_BODY = UI.FONT_DISPLAY, UI.FONT_BODY
 local text, fill = UI.text, UI.fill
 
--- Spanish names for the canonical keys. The key itself stays visible in the
+-- English names for the canonical keys. The key itself stays visible in the
 -- tooltip: it is what /lbis set and the Pawn map use.
 local STAT_LABEL = {
-    str = "Fuerza", agi = "Agilidad", sta = "Aguante", int = "Intelecto",
-    spi = "Espíritu",
-    ap = "Poder de ataque", rap = "P. ataque distancia",
-    feralap = "P. ataque feral",
-    sp = "Poder con hechizos", heal = "Sanación", mp5 = "Maná cada 5 s",
-    hit = "Golpe", spellhit = "Golpe con hechizos",
-    crit = "Crítico", spellcrit = "Crítico con hechizos",
-    haste = "Celeridad", spellhaste = "Celeridad con hechizos",
-    expertise = "Pericia",
-    dodge = "Esquiva", parry = "Parada", block = "Bloqueo",
-    blockval = "Valor de bloqueo", def = "Defensa", resil = "Temple",
-    arcanesp = "Daño arcano", firesp = "Daño de fuego",
-    frostsp = "Daño de escarcha", holysp = "Daño sagrado",
-    naturesp = "Daño de naturaleza", shadowsp = "Daño de sombras",
-    spen = "Penetración de hechizos",
-    armor = "Armadura", dps = "DPS del arma",
-    rdps = "DPS a distancia", spd = "Velocidad del arma",
+    str = L["Strength"], agi = L["Agility"], sta = L["Stamina"], int = L["Intellect"],
+    spi = L["Spirit"],
+    ap = L["Attack Power"], rap = L["Ranged Attack Power"],
+    feralap = L["Feral Attack Power"],
+    sp = L["Spell Damage"], heal = L["Healing"], mp5 = L["Mana per 5 sec."],
+    hit = L["Hit Rating"], spellhit = L["Spell Hit Rating"],
+    crit = L["Crit Rating"], spellcrit = L["Spell Crit Rating"],
+    haste = L["Haste Rating"], spellhaste = L["Spell Haste Rating"],
+    expertise = L["Expertise Rating"],
+    dodge = L["Dodge Rating"], parry = L["Parry Rating"], block = L["Block Rating"],
+    blockval = L["Block Value"], def = L["Defense Rating"], resil = L["Resilience Rating"],
+    arcanesp = L["Arcane Spell Damage"], firesp = L["Fire Spell Damage"],
+    frostsp = L["Frost Spell Damage"], holysp = L["Holy Spell Damage"],
+    naturesp = L["Nature Spell Damage"], shadowsp = L["Shadow Spell Damage"],
+    spen = L["Spell Penetration"],
+    armor = L["Armor"], dps = L["Weapon DPS"],
+    rdps = L["Ranged DPS"], spd = L["Speed"],
 }
 
 -- Shared with the tooltip, which names the stats of a random-suffix roll.
 function ns.StatLabel(key) return STAT_LABEL[key] or key end
 
--- Measured against a screenshot: at 126 px "Celeridad con hechizos" and
--- "Penetración de hechizos" were cut mid-word. The label column takes 24 more
+-- Measured against a screenshot: at 126 px the longest labels (such as
+-- "Spell Haste Rating") were cut mid-word. The label column takes 24 more
 -- and the column pitch follows, which widens the panel and nothing else.
 local COLS, ROW_H = 3, 23
 local COL_PITCH, LABEL_W, BOX_W = 228, 150, 54
@@ -194,9 +195,8 @@ local function makeField(parent, key, col, row)
     f:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
         GameTooltip:SetText(STAT_LABEL[key] or key)
-        GameTooltip:AddLine("clave: |cffffd100" .. key .. "|r", 0.8, 0.8, 0.8)
-        GameTooltip:AddLine("Vacío quita la estadística del perfil. Un 0 "
-                            .. "escrito no es lo mismo: la deja valiendo cero.",
+        GameTooltip:AddLine(L["key: |cffffd100%s|r"]:format(key), 0.8, 0.8, 0.8)
+        GameTooltip:AddLine(L["Empty removes the stat from the profile. A typed 0 is not the same: it keeps the stat at zero."],
                             0.6, 0.6, 0.6, true)
         GameTooltip:Show()
     end)
@@ -249,7 +249,7 @@ local function build()
 
     local title = text(frame, FONT_DISPLAY, 18, C.bone, "OVERLAY")
     title:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -12)
-    title:SetText("Pesos por estadística")
+    title:SetText(L["Stat weights"])
 
     frame.who = text(frame, FONT_BODY, 11, C.mist, "OVERLAY")
     frame.who:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -38)
@@ -257,8 +257,7 @@ local function build()
     frame.note = text(frame, FONT_BODY, 10, C.mist, "OVERLAY")
     frame.note:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
     frame.note:SetWidth(PANEL_W - 200); frame.note:SetJustifyH("LEFT")
-    frame.note:SetText("Se guardan por clase y especialización. Enter aplica, "
-                       .. "y la ventana principal se actualiza al instante.")
+    frame.note:SetText(L["Saved per class and spec. Enter applies, and the main window updates instantly."])
 
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -2)
@@ -270,27 +269,27 @@ local function build()
         b:SetScript("OnClick", onClick)
         return b
     end
-    btn("Preajuste", -14, 76, function()
+    btn(L["Preset"], -14, 76, function()
         replaceProfile(W.Default(ns.playerClass, ns.activeSpec))
     end)
-    btn("Exportar", -94, 70, function()
-        P:TextDialog("Exportar a Pawn",
+    btn(L["Export"], -94, 70, function()
+        P:TextDialog(L["Export to Pawn"],
                      W.ExportPawn(ns.playerClass, ns.activeSpec, ns.weights),
-                     "Ctrl+C para copiar. Esc cierra.")
+                     L["Ctrl+C to copy. Esc closes."])
     end)
-    btn("Importar", -168, 70, function()
-        P:TextDialog("Importar una escala de Pawn", "",
-                     "Pega la escala y pulsa Enter.", function(str)
+    btn(L["Import"], -168, 70, function()
+        P:TextDialog(L["Import a Pawn scale"], "",
+                     L["Paste the scale and press Enter."], function(str)
             local res, err = W.ImportPawn(str or "")
             if not res then
-                ns.Print("|cffff4040importación fallida:|r " .. tostring(err))
+                ns.Print("|cffff4040" .. L["import failed:"] .. "|r " .. tostring(err))
                 return
             end
             replaceProfile(res.weights)
-            ns.Print(("escala importada en |cffffd100%s / %s|r"):format(
+            ns.Print(L["scale imported into |cffffd100%s / %s|r"]:format(
                 ns.playerClass or "?", ns.activeSpec or "?"))
             if res.ignored and #res.ignored > 0 then
-                ns.Print("|cffffd100omitidos porque LevelBiS no los puntúa:|r "
+                ns.Print("|cffffd100" .. L["skipped because LevelBiS does not score them:"] .. "|r "
                          .. table.concat(res.ignored, ", "))
             end
         end)
@@ -306,21 +305,14 @@ local function build()
     -- bag warning. Same keys, same setters and same repaint as before.
     local function filters() return LevelBiSCharDB.settings.filters end
     local SCORE_SWITCHES = {
-        { "Pesos por nivel", "levelScale",
-          "Los índices (golpe, crítico, celeridad…) valen más cuanto más "
-          .. "bajo es el nivel. Los pesos del editor son los de nivel 70; "
-          .. "esta casilla los escala al nivel objetivo." },
-        { "Tope de ilvl", "ilvlCap",
-          "Heurística: no ofrece objetos con un ilvl muy por encima del "
-          .. "habitual para ese nivel. Útil con vendedores y cofres sin "
-          .. "nivel de fuente. No es un dato del juego." },
-        { "Tope de golpe (70)", "hitCap",
-          "A nivel 70, el golpe por encima del tope no suma. Usa tu golpe "
-          .. "actual; no cuenta talentos que bajan el tope." },
-        { "Avisos de bolsas", nil,
-          "Avisa en el chat cuando un objeto de tus bolsas mejora una ranura. "
-          .. "Solo funciona con la ventana principal abierta: cerrarla apaga "
-          .. "los avisos. /lbis equip lo equipa." },
+        { L["Level weights"], "levelScale",
+          L["Ratings (hit, crit, haste…) are worth more the lower the level. The editor weights are the level 70 ones; this box scales them to the target level."] },
+        { L["ilvl cap"], "ilvlCap",
+          L["Heuristic: does not offer items with an ilvl far above the usual for that level. Useful with vendors and chests with no source level. It is not game data."] },
+        { L["Hit cap (70)"], "hitCap",
+          L["At level 70, hit above the cap adds nothing. Uses your current hit; does not count talents that lower the cap."] },
+        { L["Bag alerts"], nil,
+          L["Warns in chat when an item in your bags is an upgrade for a slot. Only works while the main window is open: closing it turns the alerts off. /lbis equip equips it."] },
     }
     frame.scoreChecks = {}
     local cx = 14
