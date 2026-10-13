@@ -13,6 +13,11 @@ The interface is in English, and in Spanish on Spanish clients (esES/esMX).
 
 Current version: `0.20.0-i18n`.
 
+> **Work in progress.** LevelBiS is under constant development and you will run
+> into bugs: odd recommendations, missing sources, text that doesn't fit. If
+> something looks wrong, `/lbis errors` lists what the addon caught; please report
+> it on the repository's Issues page along with your class, spec and level.
+
 ---
 
 ## Installation
