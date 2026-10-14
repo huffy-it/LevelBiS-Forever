@@ -199,13 +199,14 @@ trinket1 trinket2 back mainhand offhand ranged`.
 
 ## Data
 
-The database includes 11,544 items generated from the open data of cmangos
-(TBC 2.4.3) and the client tables. Identifiers, stats and drop chances are never
+The database includes 11,544 items generated from the open data of
+[cmangos tbc-db](https://github.com/cmangos/tbc-db) (TBC 2.4.3) and the client
+tables published on [wago.tools](https://wago.tools). Identifiers, stats and drop chances are never
 made up: if a piece of data is not in the source, it is left out.
 
 ---
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE). The item data is derived from cmangos tbc-db,
-which is also GPL-3.0.
+GPL-3.0. See [LICENSE](LICENSE). The item data is derived from
+[cmangos tbc-db](https://github.com/cmangos/tbc-db), which is also GPL-3.0.
