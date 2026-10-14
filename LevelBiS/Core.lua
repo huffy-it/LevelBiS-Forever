@@ -241,8 +241,13 @@ end
 
 -- Refresh cached player state + active weights.
 function ns:Refresh()
-    self.playerClass = select(2, UnitClass("player"))
-    self.playerRace = select(2, UnitRace("player"))  -- token, e.g. "BloodElf"
+    -- Tokens drive the logic; the localized names are only for display.
+    local className, classToken = UnitClass("player")
+    local raceName, raceToken = UnitRace("player")
+    self.playerClass = classToken
+    self.playerRace = raceToken  -- token, e.g. "BloodElf"
+    self.playerClassName = className or classToken
+    self.playerRaceName = raceName or raceToken
     self.playerLevel = UnitLevel("player")
     if UnitAttackPower then
         local base, positive, negative = UnitAttackPower("player")
@@ -606,7 +611,7 @@ function ns.SrcSummary(item)
     src = src or (item and item.src and item.src[1])
     if not src then return "" end
     local label = SRC_LABEL[src.t] or src.t
-    local where = src.inst or src.zone or src.name or src.prof
+    local where = ns.InstanceLabel(src.inst) or src.zone or src.name or src.prof
                   or SRC_CONTENT[src.ct]
     if src.ct == "dungeon" then
         local difficulty = ({ [1]=L["normal"], [2]=L["heroic"], [3]=L["normal and heroic"] })[src.diff]
@@ -663,24 +668,28 @@ function Cmd.spec(arg)
         if want:lower() == "auto" then
             ns.SetManualSpec(nil)
             RefreshUI()
-            Print(L["Spec from your talents: |cffffd100%s|r"]:format(ns.activeSpec))
+            Print(L["Spec from your talents: |cffffd100%s|r"]:format(ns.SpecLabel(ns.activeSpec)))
             return
         end
         local match
         for _, s in ipairs(W.SpecsFor(ns.playerClass)) do
-            if s:lower() == want:lower() then match = s break end
+            if s:lower() == want:lower() or ns.SpecLabel(s):lower() == want:lower() then
+                match = s break
+            end
         end
         if not match then
+            local options = {}
+            for _, s in ipairs(W.SpecsFor(ns.playerClass)) do options[#options+1] = ns.SpecLabel(s) end
             Print(L["Unknown spec. Options: %s, or |cffffd100auto|r to follow your talents"]:format(
-                table.concat(W.SpecsFor(ns.playerClass), ", ")))
+                table.concat(options, ", ")))
             return
         end
         ns.SetManualSpec(match)
         RefreshUI()
-        Print(L["Active spec: |cffffd100%s|r. Go back to your talents with |cffffd100/lbis spec auto|r."]:format(match))
+        Print(L["Active spec: |cffffd100%s|r. Go back to your talents with |cffffd100/lbis spec auto|r."]:format(ns.SpecLabel(match)))
     else
         Print(L["|cffffd100%s %s|r, spec |cffffd100%s|r (%s), target level %d"]
-            :format(ns.playerRace or "?", ns.playerClass, ns.activeSpec,
+            :format(ns.playerRaceName or "?", ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec),
                     ns.specManual and L["set manually"] or L["from your talents"],
                     ns:TargetLevel()))
     end
@@ -778,7 +787,7 @@ end
 
 function Cmd.weights(rest)
     if rest == "edit" or rest == "ui" then return Cmd.edit() end
-    Print(L["Weights for |cffffd100%s / %s|r:"]:format(ns.playerClass, ns.activeSpec))
+    Print(L["Weights for |cffffd100%s / %s|r:"]:format(ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
     local keys = {}
     for k in pairs(ns.weights) do keys[#keys+1] = k end
     table.sort(keys)
@@ -797,7 +806,7 @@ function Cmd.import(arg)
     RefreshUI()
     Print(L["Imported %d weights into |cffffd100%s / %s|r"]:format(
         (function() local c=0 for _ in pairs(res.weights) do c=c+1 end return c end)(),
-        ns.playerClass, ns.activeSpec))
+        ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
     if res.ignored and #res.ignored > 0 then
         Print(L["|cffffd100Skipped because LevelBiS does not score them:|r"] .. " "
               .. table.concat(res.ignored, ", "))
@@ -833,7 +842,7 @@ function Cmd.set(rest)
     S.InvalidateProfile(ns.weights); S.UseProfile(ns.weights)
     RefreshUI()
     Print(L["%s = |cffffd100%s|r in %s / %s"]:format(
-        stat, val and tostring(val) or L["removed"], ns.playerClass, ns.activeSpec))
+        stat, val and tostring(val) or L["removed"], ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
 end
 
 function Cmd.reset()
@@ -842,7 +851,7 @@ function Cmd.reset()
     for k, v in pairs(def) do ns.weights[k] = v end
     S.InvalidateProfile(ns.weights); S.UseProfile(ns.weights)
     RefreshUI()
-    Print(L["Weights reset to the preset for |cffffd100%s / %s|r"]:format(ns.playerClass, ns.activeSpec))
+    Print(L["Weights reset to the preset for |cffffd100%s / %s|r"]:format(ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
 end
 
 function Cmd.tooltip(rest)
@@ -1013,7 +1022,7 @@ end
 function Cmd.summary()
     local tl = ns:TargetLevel()
     Print(L["All 17 slots for |cffffd100%s / %s|r at level %d:"]:format(
-        ns.playerClass, ns.activeSpec, tl))
+        ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec), tl))
     -- RankAll, not RankSlot per row: it is what keeps a unique ring out of both
     -- finger slots.
     local ranked = S.RankAll(tl, ns.weights, ns.playerClass, ns.playerLevel,
@@ -1382,7 +1391,7 @@ f:SetScript("OnEvent", function(_, event, arg1)
         SLASH_LEVELBIS2 = "/levelbis"
         SlashCmdList["LEVELBIS"] = Handler
         Print(L["Ready: %d items, %s / %s. Type |cffffd100/lbis|r to open."]:format(
-            ns.dbCount or 0, ns.playerClass or "?", ns.activeSpec or "?"))
+            ns.dbCount or 0, ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
         if ns.weightsReseeded then
             Print(L["|cffffd100Weights updated.|r They now match the scales published for 2.4.3 on every supported stat."])
             Print(L["  Yours are still in |cff808080LevelBiSCharDB.weightsBackup|r. Edit them with |cffffd100/lbis edit|r."])

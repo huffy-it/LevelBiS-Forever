@@ -287,7 +287,7 @@ local function build()
             end
             replaceProfile(res.weights)
             ns.Print(L["scale imported into |cffffd100%s / %s|r"]:format(
-                ns.playerClass or "?", ns.activeSpec or "?"))
+                ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
             if res.ignored and #res.ignored > 0 then
                 ns.Print("|cffffd100" .. L["skipped because LevelBiS does not score them:"] .. "|r "
                          .. table.concat(res.ignored, ", "))
@@ -346,7 +346,7 @@ end
 function P:Refresh()
     if not frame or not ns.weights then return end
     frame.who:SetText(("%s  \194\183  %s"):format(
-        ns.playerClass or "?", ns.activeSpec or "?"))
+        ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
     for key, box in pairs(frame.boxes) do
         if not box:HasFocus() then box.restore() end
         -- An unweighted stat is dimmed, so a profile reads at a glance as the

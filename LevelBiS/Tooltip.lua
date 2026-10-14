@@ -53,7 +53,7 @@ function ns.MarkFor(link)
         end
         return ("|cff33ff99LevelBiS:|r " .. L["%s%s for %s at level %d"])
             :format((rank == 1) and rankColor(1) or "", where,
-                    ns.activeSpec or "?", effLevel)
+                    ns.SpecLabel(ns.activeSpec), effLevel)
     end
 
     -- live path: item not in DB, score it from the client's stats

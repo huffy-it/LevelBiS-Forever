@@ -352,7 +352,7 @@ local function srcLines(item)
     for _, rankedSource in ipairs(sources) do
         local s = rankedSource.source
         if s.t == "drop" then
-            local where = s.inst or CONTENT_LABEL[s.ct]
+            local where = ns.InstanceLabel(s.inst) or CONTENT_LABEL[s.ct]
                        or (s.u and L["Unknown source"]) or L["Open world"]
             if s.ct == "dungeon" then
                 local difficulty = ({ [1]=L["normal"], [2]=L["heroic"], [3]=L["normal and heroic"] })[s.diff]
@@ -370,7 +370,7 @@ local function srcLines(item)
                         .. (s.u and (" · " .. L["access unverified"]) or "") .. note(s) .. season(s)
         elseif s.t == "vendor" then
             local cost = s.cost and (" · " .. L["requires special currency"]) or ""
-            local where = s.inst and (" \226\128\148 " .. s.inst)
+            local where = s.inst and (" \226\128\148 " .. ns.InstanceLabel(s.inst))
                        or (s.ct and CONTENT_LABEL[s.ct] and (" \226\128\148 " .. CONTENT_LABEL[s.ct]))
                        or ""
             out[#out+1] = "|c" .. HEX.ember .. L["Vendor:"] .. "|r " .. (s.name or "?") .. where .. cost
@@ -746,11 +746,11 @@ end
 local function specDropdown_Init()
     for _, spec in ipairs(W.SpecsFor(ns.playerClass)) do
         local info = UIDropDownMenu_CreateInfo()
-        info.text = spec
+        info.text = ns.SpecLabel(spec)
         info.checked = (spec == ns.activeSpec)
         info.func = function()
             ns.SetManualSpec(spec)
-            UIDropDownMenu_SetText(frame.specDD, spec)
+            UIDropDownMenu_SetText(frame.specDD, ns.SpecLabel(spec))
             UI:Refresh()
         end
         UIDropDownMenu_AddButton(info)
@@ -1586,7 +1586,7 @@ function UI:RefreshPlan(tl, filters)
     else
         local first = plan[1]
         lede = L["You could run %s: %d %s, %.0f%% of your possible upgrade."]
-            :format(first.inst, first.slots, first.slots == 1 and L["slot"] or L["slots"], first.share)
+            :format(ns.InstanceLabel(first.inst), first.slots, first.slots == 1 and L["slot"] or L["slots"], first.share)
     end
     frame.lede:SetText(lede)
     UI.lastLede = lede
@@ -1604,7 +1604,7 @@ function UI:RefreshPlan(tl, filters)
             end
             local more = #p.items > 3 and L["  ·  +%d more"]:format(#p.items - 3) or ""
             r.head:SetText(L["%d. %s  \194\183  %d %s  \194\183  %.0f%% of your upgrade"]:format(
-                i, p.inst, p.slots, p.slots == 1 and L["slot"] or L["slots"], p.share))
+                i, ns.InstanceLabel(p.inst), p.slots, p.slots == 1 and L["slot"] or L["slots"], p.share))
             r.items:SetText(table.concat(parts, "  \194\183  ") .. more)
             r.head:Show(); r.items:Show()
         else
@@ -1633,10 +1633,10 @@ function UI:Refresh()
     local filters = LevelBiSCharDB.settings.filters
 
     frame.who:SetText(("%s %s  \194\183  %s"):format(
-        ns.playerRace or "?", ns.playerClass or "?", ns.activeSpec or "?"))
+        ns.playerRaceName or "?", ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
     frame.lvlLabel:SetText(LevelBiSCharDB.targetLevel and L["Level %d"]:format(tl)
         or L["Level %d (yours)"]:format(tl))
-    UIDropDownMenu_SetText(frame.specDD, ns.activeSpec or "?")
+    UIDropDownMenu_SetText(frame.specDD, ns.SpecLabel(ns.activeSpec))
     for _, cb in ipairs(frame.checks or {}) do cb:sync() end
     for _, b in ipairs(frame.cycles or {}) do b:sync() end
     UI.lastFilterSummary = ns.FilterSummary(filters)

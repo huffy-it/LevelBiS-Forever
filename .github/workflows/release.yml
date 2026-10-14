@@ -1,0 +1,79 @@
+# Release: push a tag like v0.20.1 and this builds the zip, creates the GitHub
+# release and uploads the file to CurseForge.
+#
+# Needs, in the repository settings:
+#   Secrets   -> CF_API_TOKEN   CurseForge API token
+#   Variables -> CF_PROJECT_ID  CurseForge project ID (project page, "About")
+#
+# The tag must match "## Version:" in LevelBiS/LevelBiS.toc (v0.20.1 <-> 0.20.1).
+# The changelog is the tag message:  git tag -a v0.20.1 -m "..."
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version and changelog
+        id: meta
+        run: |
+          git fetch --force --tags
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${TAG#v}"
+          TOC_VERSION="$(sed -n 's/^## Version: *//p' LevelBiS/LevelBiS.toc | tr -d '\r')"
+          if [ "$VERSION" != "$TOC_VERSION" ]; then
+            echo "::error::Tag $TAG does not match .toc version $TOC_VERSION"
+            exit 1
+          fi
+          INTERFACE="$(sed -n 's/^## Interface: *//p' LevelBiS/LevelBiS.toc | tr -d '\r')"
+          GAME_VERSION="$((INTERFACE / 10000)).$((INTERFACE % 10000 / 100)).$((INTERFACE % 100))"
+          git tag -l --format='%(contents)' "$TAG" > changelog.md
+          if [ ! -s changelog.md ]; then git log -1 --format=%B > changelog.md; fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "game_version=$GAME_VERSION" >> "$GITHUB_OUTPUT"
+          echo "zip=LevelBiS-$VERSION.zip" >> "$GITHUB_OUTPUT"
+
+      - name: Build zip
+        run: git archive --format=zip --prefix=LevelBiS/ -o "${{ steps.meta.outputs.zip }}" HEAD:LevelBiS
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "${{ steps.meta.outputs.zip }}" \
+            --title "LevelBiS ${{ steps.meta.outputs.version }}" --notes-file changelog.md
+
+      - name: Upload to CurseForge
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_PROJECT_ID: ${{ vars.CF_PROJECT_ID }}
+        run: |
+          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_PROJECT_ID" ]; then
+            echo "::warning::CF_API_TOKEN or CF_PROJECT_ID not set; skipping CurseForge"
+            exit 0
+          fi
+          GAME_VERSION="${{ steps.meta.outputs.game_version }}"
+          IDS="$(curl -sf -H "X-Api-Token: $CF_API_TOKEN" https://wow.curseforge.com/api/game/versions \
+            | jq -c --arg v "$GAME_VERSION" '[.[] | select(.name == $v) | .id]')"
+          if [ "$IDS" = "[]" ] || [ -z "$IDS" ]; then
+            echo "::error::CurseForge has no game version named $GAME_VERSION"
+            exit 1
+          fi
+          jq -n --rawfile log changelog.md --argjson ids "$IDS" \
+            --arg name "LevelBiS ${{ steps.meta.outputs.version }}" \
+            '{changelog: $log, changelogType: "markdown", displayName: $name,
+              gameVersions: $ids, releaseType: "release"}' > metadata.json
+          curl -sf -H "X-Api-Token: $CF_API_TOKEN" \
+            -F "metadata=<metadata.json" \
+            -F "file=@${{ steps.meta.outputs.zip }}" \
+            "https://wow.curseforge.com/api/projects/$CF_PROJECT_ID/upload-file"

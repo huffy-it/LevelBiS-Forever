@@ -11,7 +11,7 @@ which gear to get as you level from 1 to 70.
 
 The interface is in English, and in Spanish on Spanish clients (esES/esMX).
 
-Current version: `0.20.0-i18n`.
+Current version: `0.20.1`.
 
 > **Work in progress.** LevelBiS is under constant development and you will run
 > into bugs: odd recommendations, missing sources, text that doesn't fit. If

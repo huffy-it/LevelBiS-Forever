@@ -3,7 +3,7 @@
 ## Notes: Best-in-slot leveling recommendations (1-70) ranked by spec stat weights
 ## Notes-esES: Recomendaciones de equipo para subir de nivel (1-70) según los pesos de tu especialización
 ## Notes-esMX: Recomendaciones de equipo para subir de nivel (1-70) según los pesos de tu especialización
-## Version: 0.20.0-i18n
+## Version: 0.20.1
 ## SavedVariables: LevelBiSDB
 ## SavedVariablesPerCharacter: LevelBiSCharDB
 ## X-Category: Leveling
