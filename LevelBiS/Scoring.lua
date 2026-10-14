@@ -1454,8 +1454,10 @@ local function passFilters(item, filters, id)
     if filters.noRep and item.repf then return false end
     -- Some items cannot be EQUIPPED without a profession (engineering gadgets,
     -- mostly). That is a property of the item, not of where it comes from, so
-    -- it is checked here rather than per source.
-    if filters.myProfsOnly and item.rprof
+    -- it is checked here rather than per source -- and always, not only with
+    -- "My professions": that switch is about who can craft an item, and
+    -- buying goggles that need Engineering 270 does not let you wear them.
+    if item.rprof
        and not (ns.HasProfession and ns.HasProfession(item.rprof, item.rskill)) then
         return false
     end
@@ -1499,8 +1501,10 @@ function S.RankSlot(slotName, targetLevel, weights, classToken, level, filters,
         local wandFallback = {}
         for _, id in ipairs(pool) do
             local item = db[id]
-            local gate = item and ((filters and filters.onlyReachable == false)
-                                   and (item.req or 0) or S.ReachLevel(item, filters, id))
+            -- The source's level gate applies with or without "Reachable":
+            -- endgame quest rewards store RequiredLevel 0, and a level 20
+            -- character was offered a level 66 quest's necklace.
+            local gate = item and S.ReachLevel(item, filters, id)
             if item and not (exclude and exclude[id])
                and (not invAllow or invAllow[item.slot])
                and not (offhand and OFFHAND_WEAPON_INV[item.slot] and not dualWield)
@@ -1576,8 +1580,7 @@ function S.UnscorableCount(slotName, targetLevel, weights, classToken, level, fi
     local n = 0
     for _, id in ipairs(slotPool(S.ResolveSlot(slotName))) do
         local item = db[id]
-        local gate = item and ((filters and filters.onlyReachable == false)
-                               and (item.req or 0) or S.ReachLevel(item, filters, id))
+        local gate = item and S.ReachLevel(item, filters, id)
         if item and gate <= targetLevel
            and S.Recommendable(item, classToken, targetLevel, profileSpec(weights, classToken))
            and S.CanUse(item, classToken, targetLevel or level or 0,
@@ -2392,8 +2395,7 @@ function S.RankOf(itemId, targetLevel, weights, classToken, level, filters, slot
     local def = slotName and S.SLOTS[slotName]
     if not def or not def.inv[item.slot] then return nil end
     if not passFilters(item, filters or {}, itemId) then return nil end
-    local gate = filters and filters.onlyReachable == false and (item.req or 0)
-                 or S.ReachLevel(item, filters, itemId)
+    local gate = S.ReachLevel(item, filters, itemId)
     local effLevel = math.min(70, math.max(targetLevel or 0, gate))
     if gate > effLevel then return nil end
     if not S.Recommendable(item, classToken, effLevel, profileSpec(weights, classToken)) then return nil end

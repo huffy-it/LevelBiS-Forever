@@ -981,7 +981,7 @@ local function build()
         { L["My professions"], "myProfsOnly",
           L["Excludes what needs a profession, or a level of one, that you don't have: craftable items and also gadgets that require the skill to be equipped."] },
         { L["Reachable"], "onlyReachable",
-          L["Keeps what you can get: minimum level, enough reputation, unique quests not yet done, and seasonal sources only with their event active. The boss level is for reference only."] },
+          L["Keeps what you can get: enough reputation, unique quests not yet done, seasonal sources only during their event. A source's level always counts."] },
     }
     frame.checks = {}
     local cx = X.slot

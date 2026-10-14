@@ -1080,7 +1080,7 @@ local FILTER_HELP = {
     { "myProfsOnly",   L["only what my professions can make"] },
     { "myFactionOnly", L["exclude quests from the other faction"] },
     { "excludeBoE",    L["exclude BoE (buyable on the Auction House)"] },
-    { "onlyReachable", L["only what you can get: minimum level, enough reputation, unique quests not yet done, and seasonal sources only with their event active"] },
+    { "onlyReachable", L["only what you can get: enough reputation, unique quests not yet done, and seasonal sources only with their event active"] },
     { "onlyInstances", L["only drops and vendors from dungeons or raids"] },
     { "onlyQuests",    L["only quest rewards"] },
     { "onlyAH",        L["only what is buyable (nothing Bind on Pickup)"] },

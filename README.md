@@ -94,8 +94,8 @@ below, and **Reset filters** goes back to the defaults.
 | No raid | On | Hides what only drops in raids. |
 | Instances | Off | Only drops and vendors from dungeons or raids. |
 | Quests | Off | Only quest rewards. Can be combined with Instances. |
-| My professions | On | Hides what needs a profession you don't have. |
-| Reachable | On | Only what you can really get: high enough level, enough reputation, quests you haven't done yet, and no seasonal events (Brewfest, Hallow's End...). |
+| My professions | On | Hides crafted items you can't make. Items that need a profession to equip (engineering goggles, gadgets) are always hidden if you lack it. |
+| Reachable | On | Only what you can really get: enough reputation, quests you haven't done yet, and no seasonal events (Brewfest, Hallow's End...). The level a quest or dungeon asks for always counts, with or without this filter. |
 
 **Buttons** (each click moves to the next option)
 
