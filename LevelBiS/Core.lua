@@ -136,13 +136,20 @@ local function InitSV()
     sv.targetLevel = sv.targetLevel         -- nil = current level
 
     -- Re-seed profiles saved by a build whose presets were wrong. Nothing is
-    -- thrown away: the old tables move to sv.weightsBackup, and the message
-    -- says so, because silently rewriting numbers somebody may have tuned by
-    -- hand would be worse than the bug.
+    -- thrown away: the old tables are appended to sv.weightsBackups, one entry
+    -- per re-seed, and the message says so, because silently rewriting numbers
+    -- somebody may have tuned by hand would be worse than the bug. Appended,
+    -- never assigned: a single slot was overwritten by the next re-seed with
+    -- the presets that replaced the hand-tuned weights, losing them. The
+    -- single-slot sv.weightsBackup of older builds is left where it is.
     if sv.weightsRevision ~= W.PRESET_REVISION then
         local had = next(sv.weights) ~= nil
         if had then
-            sv.weightsBackup = sv.weights
+            if type(sv.weightsBackups) ~= "table" then sv.weightsBackups = {} end
+            table.insert(sv.weightsBackups, {
+                revision = sv.weightsRevision, time = time and time() or nil,
+                weights = sv.weights,
+            })
             ns.weightsReseeded = true
         end
         sv.weights = {}
@@ -1394,7 +1401,7 @@ f:SetScript("OnEvent", function(_, event, arg1)
             ns.dbCount or 0, ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
         if ns.weightsReseeded then
             Print(L["|cffffd100Weights updated.|r They now match the scales published for 2.4.3 on every supported stat."])
-            Print(L["  Yours are still in |cff808080LevelBiSCharDB.weightsBackup|r. Edit them with |cffffd100/lbis edit|r."])
+            Print(L["  Yours are kept in |cff808080LevelBiSCharDB.weightsBackups|r, one copy per update."])
         end
     elseif event == "UNIT_ATTACK_POWER" then
         if arg1 ~= "player" or not UnitAttackPower then return end

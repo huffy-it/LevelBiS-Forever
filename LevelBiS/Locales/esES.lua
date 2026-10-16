@@ -375,7 +375,7 @@ L["  Pawn scale: %s"] = "  escala de Pawn: %s"
 L["|cff40ff40all good|r"] = "|cff40ff40todo en orden|r"
 L["Ready: %d items, %s / %s. Type |cffffd100/lbis|r to open."] = "listo: %d items, %s / %s. Escribe |cffffd100/lbis|r para abrir."
 L["|cffffd100Weights updated.|r They now match the scales published for 2.4.3 on every supported stat."] = "|cffffd100pesos actualizados.|r Ahora coinciden con las escalas publicadas para 2.4.3 en todas las estadísticas compatibles."
-L["  Yours are still in |cff808080LevelBiSCharDB.weightsBackup|r. Edit them with |cffffd100/lbis edit|r."] = "  Los tuyos siguen en |cff808080LevelBiSCharDB.weightsBackup|r. Tócalos con |cffffd100/lbis edit|r."
+L["  Yours are kept in |cff808080LevelBiSCharDB.weightsBackups|r, one copy per update."] = "  Los tuyos quedan guardados en |cff808080LevelBiSCharDB.weightsBackups|r, una copia por actualización."
 L["Spec %s: |cffffd100%s|r"] = "especialización %s: |cffffd100%s|r"
 L["for this talent group"] = "de este grupo de talentos"
 -- UI.lua
