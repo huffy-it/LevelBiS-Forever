@@ -14,7 +14,7 @@ The interface is in English, and in Spanish on Spanish clients (esES/esMX).
 Download: [CurseForge](https://www.curseforge.com/wow/addons/levelbis) ·
 [GitHub releases](https://github.com/huffy-it/LevelBiS/releases)
 
-Current version: `0.20.2`.
+Current version: `0.20.3`.
 
 > **Work in progress.** LevelBiS is under constant development and you will run
 > into bugs: odd recommendations, missing sources, text that doesn't fit. If

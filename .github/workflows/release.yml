@@ -37,8 +37,12 @@ jobs:
           fi
           INTERFACE="$(sed -n 's/^## Interface: *//p' LevelBiS/LevelBiS.toc | tr -d '\r')"
           GAME_VERSION="$((INTERFACE / 10000)).$((INTERFACE % 10000 / 100)).$((INTERFACE % 100))"
+          # Every release carries its changelog: no tag message, no release.
           git tag -l --format='%(contents)' "$TAG" > changelog.md
-          if [ ! -s changelog.md ]; then git log -1 --format=%B > changelog.md; fi
+          if [ "$(git cat-file -t "$TAG")" != "tag" ] || ! grep -q '[^[:space:]]' changelog.md; then
+            echo "::error::Tag $TAG has no changelog. Use: git tag -a $TAG -F changelog.md"
+            exit 1
+          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "game_version=$GAME_VERSION" >> "$GITHUB_OUTPUT"
           echo "zip=LevelBiS-$VERSION.zip" >> "$GITHUB_OUTPUT"
