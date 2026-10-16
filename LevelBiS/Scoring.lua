@@ -233,10 +233,14 @@ local slotIndex          -- [slotName] = { itemID, ... }
 local lifetimeKey, lifetimeResult -- one on-demand result, never a growing cache
 
 local fixedAltKey, fixedAltResult -- the open detail's fixed alternative (one entry)
+-- RankOf's weapon rankings, keyed by their inputs (see weaponRanksFor). Capped:
+-- a key holds an effective level, and each hovered weapon may bring its own.
+local weaponRanks, weaponRankCount = {}, 0
 
 function S.ClearLifetimeCache()
     lifetimeKey, lifetimeResult = nil, nil
     fixedAltKey, fixedAltResult = nil, nil
+    weaponRanks, weaponRankCount = {}, 0
 end
 
 -- One INVTYPE can feed several pools (a 1H weapon ranks for both mainhand and
@@ -1997,7 +2001,7 @@ function S.CachedFixedAlternative(slotName, targetLevel, weights, classToken, le
     local worn = {}
     for _, name in ipairs((resolved == "mainhand" or resolved == "offhand")
                           and { "mainhand", "offhand" } or { resolved }) do
-        worn[#worn + 1] = tostring(GetInventoryItemLink("player", S.SLOTS[name].slot))
+        worn[#worn + 1] = tostring((GetInventoryItemLink("player", S.SLOTS[name].slot)))
     end
     local key = table.concat({ slotName, tostring(targetLevel), tostring(classToken),
         tostring(level), tostring(ns.playerRace), tostring(ns.playerSide),
@@ -2381,6 +2385,51 @@ function S.Explain(item, weights, slotID, offhand)
              levelScale = levelMultiplier }
 end
 
+-- Every weapon's best rank across the hands RankOf considers, as
+-- [itemID] = { rank, score, hand }. Ranking a weapon means five full RankSlot
+-- passes (the setup and both hands), tens of milliseconds, and the tooltip asks
+-- on every rebuild: holding shift to compare rebuilds two or three tooltips
+-- several times a second, which stuttered the game on any weapon. The answer
+-- depends only on the inputs in the key; ClearLifetimeCache (profile, spec,
+-- database, bindings, equipment, professions) drops it like the other answers.
+local WEAPON_RANK_MAX = 8
+local function weaponRanksFor(effLevel, weights, classToken, level, filters, slotHint)
+    local worn = {}
+    for _, name in ipairs({ "mainhand", "offhand" }) do
+        worn[#worn + 1] = tostring((GetInventoryItemLink("player", S.SLOTS[name].slot)))
+    end
+    local key = lifetimeKeyFor(tostring(slotHint), "rank", effLevel, weights, classToken,
+                               level, filters) .. "|" .. table.concat(worn, ",")
+    local ranks = weaponRanks[key]
+    if ranks then return ranks end
+    ranks = {}
+    local setup = S.BestWeaponSetup(effLevel, weights, classToken, level, filters)
+    for _, hand in ipairs({ "mainhand", "offhand" }) do
+        if (not slotHint or hand == slotHint)
+           and not (hand == "offhand" and setup.better == "2h") then
+            local allowed, exclude
+            if hand == "mainhand" then
+                allowed = setup.better == "2h" and S.TWO_HAND_INV or S.ONE_HAND_INV
+            else
+                allowed = setup.required == "shield" and S.SHIELD_INV
+                          or setup.required == "dual" and S.OFFHAND_WEAPON_INV or nil
+                if setup.one.mh then exclude = { [setup.one.mh.id]=true } end
+            end
+            local rows = S.RankSlot(hand, effLevel, weights, classToken, level,
+                                   filters, math.huge, exclude, allowed)
+            for rank, entry in ipairs(rows) do
+                local seen = ranks[entry.id]
+                if not seen or rank < seen[1] then
+                    ranks[entry.id] = { rank, entry.score, hand }
+                end
+            end
+        end
+    end
+    if weaponRankCount >= WEAPON_RANK_MAX then weaponRanks, weaponRankCount = {}, 0 end
+    weaponRanks[key], weaponRankCount = ranks, weaponRankCount + 1
+    return ranks
+end
+
 -- Where does this item rank within its slot pool, for the active spec?
 -- Uses effective level = max(targetLevel, item.req) so a not-yet-usable item is
 -- ranked among the pool it would compete in. Returns:
@@ -2401,30 +2450,10 @@ function S.RankOf(itemId, targetLevel, weights, classToken, level, filters, slot
     if not S.Recommendable(item, classToken, effLevel, profileSpec(weights, classToken)) then return nil end
     if not S.CanUse(item, classToken, effLevel, false) then return nil end
     if slotName == "mainhand" or slotName == "offhand" then
-        local setup = S.BestWeaponSetup(effLevel, weights, classToken, level, filters)
-        local bestRank, bestScore, bestSlot
-        for _, hand in ipairs({ "mainhand", "offhand" }) do
-            if (not slotHint or hand == slotHint) and S.SLOTS[hand].inv[item.slot]
-               and not (hand == "offhand" and setup.better == "2h") then
-                local allowed, exclude
-                if hand == "mainhand" then
-                    allowed = setup.better == "2h" and S.TWO_HAND_INV or S.ONE_HAND_INV
-                else
-                    allowed = setup.required == "shield" and S.SHIELD_INV
-                              or setup.required == "dual" and S.OFFHAND_WEAPON_INV or nil
-                    if setup.one.mh then exclude = { [setup.one.mh.id]=true } end
-                end
-                local rows = S.RankSlot(hand, effLevel, weights, classToken, level,
-                                       filters, math.huge, exclude, allowed)
-                for rank, entry in ipairs(rows) do
-                    if entry.id == itemId and (not bestRank or rank < bestRank) then
-                        bestRank, bestScore, bestSlot = rank, entry.score, hand
-                    end
-                end
-            end
-        end
-        if not bestRank then return nil end
-        return bestRank, bestScore, bestSlot, effLevel
+        local ranks = weaponRanksFor(effLevel, weights, classToken, level, filters, slotHint)
+        local found = ranks[itemId]
+        if not found then return nil end
+        return found[1], found[2], found[3], effLevel
     end
     -- Use the same armor fallback, paired exclusion and noise floor as the UI.
     local exclude
