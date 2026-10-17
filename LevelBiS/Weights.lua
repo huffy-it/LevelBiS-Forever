@@ -364,15 +364,18 @@ end
 -- 10/0/44 mage). Summing the rank of each talent is what reports the build
 -- correctly; pointsSpent stays as the fallback for a client without
 -- GetTalentInfo. tonumber() because a not-yet-synced value can arrive as "".
+-- The extra parentheses keep select() to one value: tonumber() takes a second
+-- argument as the base, and GetTalentInfo's next value is the talent's max
+-- rank -- a 1-rank talent made it base 1, an error that stopped the login.
 local function tabPoints(tab)
     local sum = 0
     if type(GetNumTalents) == "function" and type(GetTalentInfo) == "function" then
         for i = 1, (tonumber(GetNumTalents(tab)) or 0) do
-            sum = sum + (tonumber(select(5, GetTalentInfo(tab, i))) or 0)
+            sum = sum + (tonumber((select(5, GetTalentInfo(tab, i)))) or 0)
         end
     end
     if sum == 0 and type(GetTalentTabInfo) == "function" then
-        sum = tonumber(select(3, GetTalentTabInfo(tab))) or 0
+        sum = tonumber((select(3, GetTalentTabInfo(tab)))) or 0
     end
     return sum
 end

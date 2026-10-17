@@ -1366,6 +1366,21 @@ local function Handler(msg)
     else Cmd.slot(cmd) end -- allow "/lbis chest" shorthand
 end
 
+-- Registered when the file loads, not on PLAYER_LOGIN: an error during login
+-- used to leave the client without /lbis, and so without /lbis errors either.
+SLASH_LEVELBIS1 = "/lbis"
+SLASH_LEVELBIS2 = "/levelbis"
+SlashCmdList["LEVELBIS"] = Handler
+
+-- Each login step runs on its own: one that fails is recorded for /lbis errors
+-- (with its stack) and the next ones still run.
+local function Step(fn)
+    xpcall(fn, function(err)
+        local handler = geterrorhandler and geterrorhandler()
+        if handler then handler(err) end
+    end)
+end
+
 ------------------------------------------------------------------------------
 -- Events
 ------------------------------------------------------------------------------
@@ -1392,13 +1407,12 @@ f:SetScript("OnEvent", function(_, event, arg1)
         LoadDB()
     elseif event == "PLAYER_LOGIN" then
         ns.loggedIn = true
-        ns.RefreshSetCounts()
-        ns:Refresh()
-        SLASH_LEVELBIS1 = "/lbis"
-        SLASH_LEVELBIS2 = "/levelbis"
-        SlashCmdList["LEVELBIS"] = Handler
-        Print(L["Ready: %d items, %s / %s. Type |cffffd100/lbis|r to open."]:format(
-            ns.dbCount or 0, ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
+        Step(ns.RefreshSetCounts)
+        Step(function() ns:Refresh() end)
+        Step(function()
+            Print(L["Ready: %d items, %s / %s. Type |cffffd100/lbis|r to open."]:format(
+                ns.dbCount or 0, ns.playerClassName or "?", ns.SpecLabel(ns.activeSpec)))
+        end)
         if ns.weightsReseeded then
             Print(L["|cffffd100Weights updated.|r They now match the scales published for 2.4.3 on every supported stat."])
             Print(L["  Yours are kept in |cff808080LevelBiSCharDB.weightsBackups|r, one copy per update."])
