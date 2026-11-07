@@ -1,5 +1,13 @@
 # LevelBiS
 
+> [!WARNING]
+> **Deprecated: the TBC Anniversary version is no longer developed.**
+> `0.20.4` is the last release for TBC Anniversary (2.5.x). It will not get new
+> features, bug fixes or data updates. It keeps working as it is, but expect it to break with future client patches.
+>
+> Development is moving to **World of Warcraft: Forever**. There is no release
+> date yet; this repository will host it.
+
 Addon for **World of Warcraft TBC Anniversary (2.5.x client)** that tells you
 which gear to get as you level from 1 to 70.
 
@@ -14,12 +22,7 @@ The interface is in English, and in Spanish on Spanish clients (esES/esMX).
 Download: [CurseForge](https://www.curseforge.com/wow/addons/levelbis) ·
 [GitHub releases](https://github.com/huffy-it/LevelBiS/releases)
 
-Current version: `0.20.4`.
-
-> **Work in progress.** LevelBiS is under constant development and you will run
-> into bugs: odd recommendations, missing sources, text that doesn't fit. If
-> something looks wrong, `/lbis errors` lists what the addon caught; please report
-> it on the repository's Issues page along with your class, spec and level.
+Last TBC Anniversary version: `0.20.4` (final).
 
 ---
 
