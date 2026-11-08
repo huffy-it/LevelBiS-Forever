@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## AllowLoadGameType: forever
-## Title: LevelBiS
+## Title: LevelBiS Forever
 ## Notes: Best-in-slot leveling recommendations (1-60) ranked by spec stat weights
 ## Notes-esES: Recomendaciones de equipo para subir de nivel (1-60) según los pesos de tu especialización
 ## Notes-esMX: Recomendaciones de equipo para subir de nivel (1-60) según los pesos de tu especialización

@@ -1,7 +1,8 @@
-# LevelBiS
+# LevelBiS Forever
 
 > [!IMPORTANT]
-> **Work in progress: LevelBiS is being ported to World of Warcraft: Forever.**
+> **Work in progress: LevelBiS Forever is the port of LevelBiS to World of
+> Warcraft: Forever.**
 > There is no Forever release yet. The documentation below still describes the
 > TBC Anniversary version and will be updated as the port advances.
 >
@@ -26,8 +27,8 @@ Download: not released yet for Forever.
 
 ## Installation
 
-1. Copy the `LevelBiS/` folder into `World of Warcraft/_classic_/Interface/AddOns/`.
-2. Log in and type `/lbis` (or click the minimap button).
+1. Copy the `LevelBiS/` folder into `World of Warcraft/_forever_/Interface/AddOns/`.
+2. Log in and type `/lbis` or `/lbisf` (or click the minimap button).
 
 If the addon shows up as "out of date", enable "Load out of date AddOns" on the
 character selection screen.

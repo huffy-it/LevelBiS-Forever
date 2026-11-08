@@ -841,6 +841,11 @@ local function build()
     local title = text(frame, FONT_DISPLAY, 20, C.bone, "OVERLAY")
     title:SetPoint("TOPLEFT", frame, "TOPLEFT", X.slot, -12)
     title:SetText("LevelBiS")
+    -- The product name is "LevelBiS Forever"; the second word is set smaller
+    -- on the title's baseline so the tabs keep their row.
+    frame.titleSub = text(frame, FONT_DISPLAY, 13, C.label, "OVERLAY")
+    frame.titleSub:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 5, 1)
+    frame.titleSub:SetText("Forever")
 
     -- The recommendation is body text so it remains readable at this size.
     frame.lede = text(frame, FONT_BODY, 13, C.zang, "OVERLAY")
@@ -950,7 +955,8 @@ local function build()
         UI.controlLayout[#UI.controlLayout + 1] = { name = name, y = y, x = x, w = w, h = h }
     end
     UI.recordControl = recordControl
-    recordControl("title", -14, 14, 104, 24)
+    -- "LevelBiS" (about 104 px at 20 pt) plus "Forever" at 13 pt: an estimate.
+    recordControl("title", -14, 14, 160, 24)
     recordControl("Pesos", -36, FRAME_W - 14 - 56, 56, 19)
     recordControl("level", -56, 140, 94, 19)
     recordControl("<", -56, 236, 22, 19)
@@ -1124,7 +1130,7 @@ local function build()
     -- disabled: every tab stays clickable and keeps its normal look.
     frame.tabs = {}
     local TAB_Y, TAB_GAP = -14, 4
-    local tabX = 120
+    local tabX = 182
     local function tabButton(label, key)
         local w = buttonWidth(label) + 6
         local b = UI.Button(frame)
@@ -2099,7 +2105,7 @@ local function createMinimapButton()
     b:SetScript("OnClick", function() UI:Toggle() end)
     b:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine("LevelBiS")
+        GameTooltip:AddLine("LevelBiS Forever")
         GameTooltip:AddLine(L["|cffffffffClick:|r open   |cffffffffDrag:|r move"],
                             0.8, 0.8, 0.8)
         GameTooltip:Show()

@@ -633,6 +633,7 @@ local Cmd = {}
 function Cmd.help()
     Print(L["Commands:"])
     Print(L["  /lbis                      open or close the window"])
+    Print(L["  /lbisf                     same as /lbis"])
     Print(L["  /lbis <slot>               top 5 for that slot"])
     Print(L["  /lbis summary              all 17 slots, as text"])
     Print(L["  /lbis spec [name|auto]     view, set or re-detect your spec"])
@@ -1366,6 +1367,7 @@ end
 -- used to leave the client without /lbis, and so without /lbis errors either.
 SLASH_LEVELBIS1 = "/lbis"
 SLASH_LEVELBIS2 = "/levelbis"
+SLASH_LEVELBIS3 = "/lbisf"   -- LevelBiS Forever
 SlashCmdList["LEVELBIS"] = Handler
 
 -- Each login step runs on its own: one that fails is recorded for /lbis errors
