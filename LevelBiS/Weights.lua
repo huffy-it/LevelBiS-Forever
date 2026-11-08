@@ -47,6 +47,9 @@ W.PRESET_REVISION = 5
 -- Talent-tab order per class (used to auto-detect the active spec at login).
 -- Index = TBC talent tab index (1..3); in Forever, provisionally read as the
 -- client's specialization index until W.SPEC_IDS is known (see DetectSpec).
+-- Forever keeps the classic talent trees, 3 per class (27 specs, several
+-- sources in FOREVER_RESEARCH.md), so the count check in DetectSpec holds; the
+-- shaman's first tree may be named "Elemental Combat" there.
 -- TBC: revisar para Forever
 ------------------------------------------------------------------------------
 W.SPEC_TABS = {

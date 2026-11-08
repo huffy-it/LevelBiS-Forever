@@ -719,7 +719,8 @@ end
 --   * S.WeaponAdjustment is about swing speed and damage; sockets do not apply.
 --   * The detail's stat changes (UI detailStats) list the item's own stats on
 --     purpose: the ideal gems are a hypothesis, not a stat the item has.
--- TBC: revisar para Forever (vanilla items have no sockets)
+-- TBC: revisar para Forever (vanilla items have no sockets; Forever probably
+-- has neither sockets nor gems -- FOREVER_RESEARCH.md -- unconfirmed, kept)
 S.SOCKET_MIN_ILVL = 100
 S.SOCKET_EPIC_ILVL = 151
 
@@ -1043,7 +1044,9 @@ local RATING_KEYS = {
 }
 S.RATING_KEYS = RATING_KEYS
 
--- TBC: revisar para Forever (vanilla has no combat ratings; Forever unknown)
+-- TBC: revisar para Forever (Forever unifies hit and crit for melee, ranged
+-- and spells and adds expertise; rating or percentage is NOT confirmed, so no
+-- Forever coefficients are coded yet -- FOREVER_RESEARCH.md)
 local function ratingCoefficient(level)
     if level <= 10 then return 2 / 52 end
     if level <= 60 then return (level - 8) / 52 end
@@ -1098,7 +1101,8 @@ end
 -- 9% melee and ranged against a level 73 boss (142 rating) and 16% for spells
 -- (202). It does not count talents that lower the cap, so it is conservative:
 -- it never tells you that you have reached it when that is not true.
--- TBC: revisar para Forever
+-- TBC: revisar para Forever (hit is one stat in Forever; the cap in rating or
+-- percent is unconfirmed -- FOREVER_RESEARCH.md)
 S.HIT_CAP = { hit = 142, spellhit = 202 }
 
 local function slotStat(slotID, key)
@@ -1315,7 +1319,8 @@ function S.RouteAccess(source, filters)
     local access = source.access or 0
     if source.diff == 2 or (source.diff == 3 and filters
        and filters.dungeonMode == "heroic") then
-        -- TBC: revisar para Forever (heroics opened at the cap)
+        -- TBC: revisar para Forever (heroics opened at the cap; Forever seems
+        -- to have one difficulty per dungeon -- FOREVER_RESEARCH.md, unconfirmed)
         access = math.max(ns.MAX_LEVEL, access)
     end
     return access
