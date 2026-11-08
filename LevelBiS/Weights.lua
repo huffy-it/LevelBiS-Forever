@@ -370,21 +370,44 @@ end
 -- "Migración a WoW Forever"). Only IDs read from the client go here.
 W.SPEC_IDS = {}
 
+-- Classic tree names the client may report for a spec whose name here differs.
+-- "Feral Combat" is the druid's classic tree (Cat by default, as with the tab);
+-- "Elemental Combat" is how one source names the shaman's first tree in
+-- Forever (FOREVER_RESEARCH.md). English only: localized names are not
+-- guessed, a Spanish client falls through to the index.
+W.SPEC_NAME_ALIAS = {
+    ["Feral Combat"] = "Feral (Cat)", ["Feral"] = "Feral (Cat)",
+    ["Elemental Combat"] = "Elemental",
+}
+
+-- The spec a client name stands for, among this class's trees, or nil.
+local function specFromName(tabs, name)
+    if type(name) ~= "string" or name == "" then return nil end
+    name = W.SPEC_NAME_ALIAS[name] or name
+    for _, spec in ipairs(tabs) do
+        if spec == name then return spec end
+    end
+    return nil
+end
+
 -- Detect the active spec from the client's specialization; falls back to the
 -- first spec. Second return: 1 when the client answered, 0 when it did not (no
 -- spec chosen yet, or no API), so the caller can tell a guess from a reading.
 --
--- Until SPEC_IDS is filled, the client's spec index is read as the old talent
--- tab order (Arms/Fury/Protection...). PROVISIONAL: it is only trusted when the
--- client lists exactly as many specs as there were tabs, and `/lbis spec`
--- overrides it either way.
+-- In order: the spec ID (W.SPEC_IDS, once read from the client); the spec's
+-- English name (what the competitor ForeverBiS reads, per FOREVER_RESEARCH.md);
+-- and, PROVISIONAL, the client's spec index read as the old talent tab order
+-- (Arms/Fury/Protection...), only when the client lists exactly as many specs
+-- as there were tabs. `/lbis spec` overrides it either way.
 function W.DetectSpec(classToken)
     local tabs = W.SPEC_TABS[classToken]
     if not tabs then return nil, 0 end
-    local index, id = ns.API.ActiveSpec()
+    local index, id, name = ns.API.ActiveSpec()
     if not index then return tabs[1], 0 end
     local known = id and W.SPEC_IDS[id]
     if known then return known, 1 end
+    local named = specFromName(tabs, name)
+    if named then return named, 1 end
     local count = ns.API.NumSpecs()
     if (count == nil or count == #tabs) and tabs[index] then return tabs[index], 1 end
     return tabs[1], 0
