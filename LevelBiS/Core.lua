@@ -93,7 +93,7 @@ local function InitSV()
     -- default, because the window's first job is still "what is best", not
     -- "what is best that I can buy".
     if flt.onlyAH == nil then flt.onlyAH = false end
-    -- Off by default: between level 61 and 69 the gear that rolls a random
+    -- Off by default: in TBC, between level 61 and 69 the gear that rolls a random
     -- suffix outnumbers the gear that does not by four to one, so turning this
     -- on by default would hide most of what a levelling character can wear.
     if flt.noRandom == nil then flt.noRandom = false end
@@ -173,17 +173,21 @@ end
 -- Professions
 --
 -- The pipeline emits craft sources with the English profession name
--- ("Blacksmithing"), but the client only ever reports the LOCALIZED skill line
--- name, so a string compare would silently fail on a non-English client. The
--- bridge is the profession's own spell: GetSpellInfo returns its localized
--- name, which is exactly the skill line name, so the map is built at runtime
--- from the client's own strings.
---
--- 2.5.x has no GetProfessions(); skills come from GetSkillLineInfo, which hides
--- the children of a collapsed header. Headers themselves are always listed, so
--- the collapsed ones are recorded, everything is expanded for the scan, and
--- only those are collapsed again -- the player's skill window looks untouched.
+-- ("Blacksmithing"), but the client reports the LOCALIZED name, so a string
+-- compare would silently fail on a non-English client. The modern client
+-- (GetProfessions / GetProfessionInfo, ns.API.Professions) also reports the
+-- skill line ID, which does not depend on the language: that is the bridge.
+-- SkillLine IDs from the game's SkillLine table; to be confirmed in the
+-- Forever client. A profession whose ID is not listed falls back to the old
+-- bridge, the profession's own spell, whose localized name is the skill name.
 ------------------------------------------------------------------------------
+local PROF_SKILL_LINE = {
+    [171] = "Alchemy", [164] = "Blacksmithing", [333] = "Enchanting", [202] = "Engineering",
+    [182] = "Herbalism", [755] = "Jewelcrafting", [165] = "Leatherworking",
+    [186] = "Mining", [393] = "Skinning", [197] = "Tailoring",
+    [185] = "Cooking", [129] = "First Aid", [356] = "Fishing",
+}
+
 local PROF_SPELL = {
     Alchemy = 2259, Blacksmithing = 2018, Enchanting = 7411, Engineering = 4036,
     Herbalism = 2366, Jewelcrafting = 25229, Leatherworking = 2108,
@@ -195,32 +199,22 @@ local profRank            -- [English profession name] = skill rank
 
 local function scanProfessions()
     profRank = {}
-    if type(GetNumSkillLines) ~= "function" then return end
-    -- localized skill line name -> English key
-    local localized = {}
-    for eng, spellID in pairs(PROF_SPELL) do
-        local name = GetSpellInfo(spellID)
-        if name then localized[name] = eng end
-    end
-
-    local wasCollapsed = {}
-    for i = 1, GetNumSkillLines() do
-        local name, isHeader, isExpanded = GetSkillLineInfo(i)
-        if isHeader and not isExpanded then wasCollapsed[name] = true end
-    end
-    if next(wasCollapsed) and ExpandSkillHeader then ExpandSkillHeader(0) end
-
-    for i = 1, GetNumSkillLines() do
-        local name, isHeader, _, rank = GetSkillLineInfo(i)
-        local eng = (not isHeader) and name and localized[name]
-        if eng then profRank[eng] = rank or 0 end
-    end
-
-    if next(wasCollapsed) and CollapseSkillHeader then
-        for i = GetNumSkillLines(), 1, -1 do
-            local name, isHeader = GetSkillLineInfo(i)
-            if isHeader and wasCollapsed[name] then CollapseSkillHeader(i) end
+    local list = ns.API.Professions()
+    if not list then return end
+    local localized       -- localized skill name -> English key, built on demand
+    for _, p in ipairs(list) do
+        local eng = p.skillLine and PROF_SKILL_LINE[p.skillLine]
+        if not eng then
+            if not localized then
+                localized = {}
+                for name, spellID in pairs(PROF_SPELL) do
+                    local l = ns.API.SpellName(spellID)
+                    if l then localized[l] = name end
+                end
+            end
+            eng = localized[p.name]
         end
+        if eng then profRank[eng] = p.rank or 0 end
     end
 end
 ns.ScanProfessions = scanProfessions
@@ -331,10 +325,10 @@ local function UnlockMessage(level, list)
 end
 ns.UnlockMessage = UnlockMessage
 
-local MILESTONES = { 5,10,15,20,25,30,35,40,45,50,55,60,65,70 }
+-- Every fifth level up to the cap.
 local function NextMilestone(cur)
-    for _, m in ipairs(MILESTONES) do if m > cur then return m end end
-    return 70
+    local m = (math.floor((cur or 0) / 5) + 1) * 5
+    return math.min(m, ns.MAX_LEVEL)
 end
 ns.NextMilestone = NextMilestone
 
@@ -357,7 +351,7 @@ local function QColor(q)
     return c and c.hex or "|cffffffff"
 end
 
--- Clickable item link if GetItemInfo has it cached; otherwise colored [name].
+-- Clickable item link if C_Item.GetItemInfo has it cached; otherwise colored [name].
 --
 -- An item that rolls a random suffix is named with the roll it was scored as,
 -- because the base item and the roll are not the same purchase: "Warmaul
@@ -372,11 +366,11 @@ local function ItemLink(id, item)
     -- Ask the client for the rolled link first: it comes back localised, and
     -- clicking it opens the right item rather than the base one.
     if id and variantId then
-        local rolled = select(2, GetItemInfo(
+        local rolled = select(2, ns.API.ItemInfo(
             ("item:%d:0:0:0:0:0:%d:0:0:0"):format(id, variantId)))
         if rolled then return rolled end
     end
-    local link = id and select(2, GetItemInfo(id))
+    local link = id and select(2, ns.API.ItemInfo(id))
     local name = link or (item and item.n and (QColor(item.q) .. "[" .. item.n .. "]|r"))
                  or ("item:" .. tostring(id))
     if suffix then return name .. " |cffffd100" .. suffix .. "|r" end
@@ -393,7 +387,7 @@ ns.ItemLink = ItemLink
 -- "Crimson Beholder Eye" while the item's own tooltip said something else
 -- entirely.
 --
--- GetItemInfo is asynchronous the first time an item is asked for and returns
+-- C_Item.GetItemInfo is asynchronous the first time an item is asked for and returns
 -- nil until the client has it, which is why the window listens for
 -- GET_ITEM_INFO_RECEIVED. The English name shows for a moment and is replaced,
 -- rather than being wrong for the session.
@@ -435,14 +429,14 @@ function ns.LocalName(id, item, variantId)
     end
     if id and variantId then
         local link = ("item:%d:0:0:0:0:0:%d:0:0:0"):format(id, variantId)
-        local info = { GetItemInfo(link) }
+        local info = { ns.API.ItemInfo(link) }
         S.ObserveBinding(id, info[14])
         if info[1] then
             localNames[id] = { name=info[1], variantId=variantId, rolled=true }
             return info[1], true
         end
     end
-    local info = id and { GetItemInfo(id) } or {}
+    local info = id and { ns.API.ItemInfo(id) } or {}
     local plain = info[1]
     if id then S.ObserveBinding(id, info[14]) end
     if plain and not variantId then
@@ -659,7 +653,8 @@ function Cmd.help()
     Print(L["  /lbis access [refresh]     reputation and unique quests that \"Reachable\" sees"])
     Print(L["  /lbis perf                 time each calculation on this client"])
     Print(L["  /lbis phase [1-5|all|auto] content that counts for the server phase"])
-    Print(L["  /lbis goal [70|leveling]   shortcut: raids, heroics and open phase at level 70"])
+    Print(L["  /lbis goal [%d|leveling]   shortcut: raids, heroics and open phase at level %d"]
+        :format(ns.MAX_LEVEL, ns.MAX_LEVEL))
     Print(L["  /lbis rolls [on|off]       advice when rolling on group loot"])
     Print(L["  /lbis import <text>        import a Pawn scale"])
     Print(L["  /lbis export               export your weights as a Pawn scale"])
@@ -706,7 +701,7 @@ function Cmd.level(arg)
     if arg == "next" then
         LevelBiSCharDB.targetLevel = NextMilestone(ns.playerLevel)
     elseif arg and arg:match("^%d+$") then
-        LevelBiSCharDB.targetLevel = math.min(70, math.max(1, tonumber(arg)))
+        LevelBiSCharDB.targetLevel = math.min(ns.MAX_LEVEL, math.max(1, tonumber(arg)))
     elseif arg == "" or arg == nil then
         LevelBiSCharDB.targetLevel = nil
     end
@@ -745,7 +740,7 @@ function Cmd.phase(rest)
 end
 
 -- M-10. One switch for the endgame question: every filter that keeps raids,
--- heroics and the open phase in view, at level 70. Not a BiS list: the same
+-- heroics and the open phase in view, at the level cap. Not a BiS list: the same
 -- ranking with the leveling filters lifted. The filters and the level you had
 -- are kept, and "leveling" brings them back.
 function ns.SetGoal(goal)
@@ -761,7 +756,7 @@ function ns.SetGoal(goal)
         flt.onlyInstances, flt.onlyQuests = false, false
         flt.onlyReachable, flt.ilvlCap = true, false
         flt.maxPhase = S.CURRENT_PHASE
-        LevelBiSCharDB.targetLevel = 70
+        LevelBiSCharDB.targetLevel = ns.MAX_LEVEL
         sv.goal = "endgame"
     else
         local backup = sv.goalBackup
@@ -778,13 +773,14 @@ end
 function Cmd.goal(rest)
     rest = (rest or ""):lower()
     local want
-    if rest == "70" or rest == "endgame" then want = "endgame"
+    if rest == tostring(ns.MAX_LEVEL) or rest == "endgame" then want = "endgame"
     elseif rest == "leveling" or rest == "nivel" then want = "leveling"
     else want = (LevelBiSCharDB.settings.goal == "endgame") and "leveling" or "endgame" end
     local now = ns.SetGoal(want)
     RefreshUI()
     Print(L["Goal: |cffffd100%s|r"]:format(now == "endgame"
-        and L["level 70 (raids, heroics and the open phase)"] or L["leveling"]))
+        and L["level %d (raids, heroics and the open phase)"]:format(ns.MAX_LEVEL)
+        or L["leveling"]))
 end
 
 function Cmd.edit()
@@ -1095,7 +1091,7 @@ local FILTER_HELP = {
     { "fixedOnly",     L["exclude anything that depends on a roll"] },
     { "levelScale",    L["scale combat ratings by level"] },
     { "ilvlCap",       L["heuristic: cap the ilvl by level"] },
-    { "hitCap",        L["at level 70, do not value hit above the cap"] },
+    { "hitCap",        L["at level %d, do not value hit above the cap"]:format(ns.MAX_LEVEL) },
 }
 
 -- excludeBoE and onlyAH are opposites, and turning both on leaves the window
@@ -1324,7 +1320,7 @@ function Cmd.test()
     if n == 0 then Print(L["  |cffff4040no data: is Data\\items_*.lua loading?|r"]) return end
     -- rank a couple of representative slots to prove the engine end-to-end
     for _, slot in ipairs({ "chest", "mainhand" }) do
-        local list = S.RankSlot(slot, 70, ns.weights, ns.playerClass, ns.playerLevel, nil, 3)
+        local list = S.RankSlot(slot, ns.MAX_LEVEL, ns.weights, ns.playerClass, ns.playerLevel, nil, 3)
         Print(L["  %s: %d eligible (best score %.0f)"]:format(
             slot, #list, list[1] and list[1].score or 0))
     end
@@ -1388,19 +1384,25 @@ local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_LOGIN")
 f:RegisterEvent("PLAYER_LEVEL_UP")
-f:RegisterEvent("SKILL_LINES_CHANGED")
+-- Profession ranks: the modern client still fires this one; registered
+-- defensively like every name not yet seen in Forever.
+ns.API.RegisterEvents(f, "SKILL_LINES_CHANGED")
 -- Set bonuses are worth what your current gear makes them worth.
 f:RegisterEvent("UNIT_INVENTORY_CHANGED")
 f:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 f:RegisterEvent("UNIT_ATTACK_POWER")
--- Talents: spending points, the data arriving after login, and switching the
--- dual-spec group. Registering an event the client does not know is an error,
--- so the dual-spec one is only tried where its API exists, and inside pcall.
-f:RegisterEvent("CHARACTER_POINTS_CHANGED")
-f:RegisterEvent("PLAYER_TALENT_UPDATE")
-if type(GetActiveTalentGroup) == "function" then
-    pcall(f.RegisterEvent, f, "ACTIVE_TALENT_GROUP_CHANGED")
-end
+-- Specialization and talents: choosing a spec, spending points, the data
+-- arriving after login, and switching the dual-spec group. The modern client
+-- raises on an event it does not know, and which of these Forever fires is not
+-- confirmed, so each one is tried on its own (ns.API.RegisterEvents).
+local SPEC_EVENTS = {
+    PLAYER_SPECIALIZATION_CHANGED = true, ACTIVE_PLAYER_SPECIALIZATION_CHANGED = true,
+    ACTIVE_TALENT_GROUP_CHANGED = true, PLAYER_TALENT_UPDATE = true,
+    CHARACTER_POINTS_CHANGED = true, TRAIT_CONFIG_UPDATED = true,
+}
+ns.API.RegisterEvents(f, "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_PLAYER_SPECIALIZATION_CHANGED",
+    "ACTIVE_TALENT_GROUP_CHANGED", "PLAYER_TALENT_UPDATE", "CHARACTER_POINTS_CHANGED",
+    "TRAIT_CONFIG_UPDATED")
 f:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON then
         InitSV()
@@ -1434,9 +1436,9 @@ f:SetScript("OnEvent", function(_, event, arg1)
             if #list > 0 then Print(UnlockMessage(arg1, list)) end
         end
         RefreshUI()
-    elseif event == "CHARACTER_POINTS_CHANGED" or event == "PLAYER_TALENT_UPDATE"
-        or event == "ACTIVE_TALENT_GROUP_CHANGED" then
+    elseif SPEC_EVENTS[event] then
         if not ns.loggedIn then return end
+        if event == "PLAYER_SPECIALIZATION_CHANGED" and arg1 and arg1 ~= "player" then return end
         local before = ns.activeSpec
         ns:Refresh()
         if ns.activeSpec ~= before then

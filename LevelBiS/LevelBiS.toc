@@ -1,20 +1,20 @@
-## Interface: 20506
+## Interface: 16001
 ## Title: LevelBiS
-## Notes: Best-in-slot leveling recommendations (1-70) ranked by spec stat weights
-## Notes-esES: Recomendaciones de equipo para subir de nivel (1-70) según los pesos de tu especialización
-## Notes-esMX: Recomendaciones de equipo para subir de nivel (1-70) según los pesos de tu especialización
+## Notes: Best-in-slot leveling recommendations (1-60) ranked by spec stat weights
+## Notes-esES: Recomendaciones de equipo para subir de nivel (1-60) según los pesos de tu especialización
+## Notes-esMX: Recomendaciones de equipo para subir de nivel (1-60) según los pesos de tu especialización
 ## Version: 0.20.4
 ## SavedVariables: LevelBiSDB
 ## SavedVariablesPerCharacter: LevelBiSCharDB
 ## X-Category: Leveling
 
-# NOTE: verify the client build in-game with:  /run print(select(4,GetBuildInfo()))
-# and set the number above accordingly (TBC Anniversary ~20506). If it shows as
-# "out of date", enable "Load out of date AddOns" in the character select screen.
+# WoW: Forever (World of Warcraft\_forever_\Interface\AddOns). Verify the
+# number above in-game with:  /run print(select(4,GetBuildInfo()))
 
-# Load order matters: locale -> shared constants (Weights) -> engine (Scoring) -> data -> bootstrap (Core).
+# Load order matters: locale -> client API (Compat) -> shared constants (Weights) -> engine (Scoring) -> data -> bootstrap (Core).
 Locale.lua
 Locales\esES.lua
+Compat.lua
 Weights.lua
 Scoring.lua
 Access.lua

@@ -44,6 +44,7 @@ local RACE_BIT = {
 --
 -- The shaman is the only one whose dual wield is a talent rather than a
 -- trainer skill: Enhancement, five tiers in, so twenty points, so level forty.
+-- TBC: revisar para Forever
 local DUAL_WIELD = {
     ROGUE   = { level = 10 },
     WARRIOR = { level = 20 },
@@ -76,6 +77,7 @@ end
 --   2h      the main hand must be a two-handed weapon, and nothing beside it
 --   shield  the off hand must be a shield
 --   dual    the off hand must be a weapon
+-- TBC: revisar para Forever
 local SPEC_WEAPON = {
     WARRIOR = {
         ["Arms"]       = { want = "2h",     level = 40 },  -- Mortal Strike
@@ -305,6 +307,7 @@ end
 -- `repf` (Logistics Officer Ulrike sells the Honor Hold sets for reputation,
 -- not for honor), and calling them PvP would hide them behind a filter that is
 -- on by default.
+-- TBC: revisar para Forever
 local PVP_VENDORS = {
     [12781] = true,   -- Master Sergeant Biggins          Insignia of the Alliance
     [12793] = true,   -- Brave Stonehide                  Insignia of the Horde
@@ -374,6 +377,7 @@ end
 --
 -- Not tracked, because the data has no handle for them: reputation vendors and
 -- badge gear of the later phases, arena seasons.
+-- TBC: revisar para Forever
 S.PHASE = {
     inst = {
         ["Serpentshrine Cavern"] = 2, ["The Eye"] = 2,
@@ -715,6 +719,7 @@ end
 --   * S.WeaponAdjustment is about swing speed and damage; sockets do not apply.
 --   * The detail's stat changes (UI detailStats) list the item's own stats on
 --     purpose: the ideal gems are a hypothesis, not a stat the item has.
+-- TBC: revisar para Forever (vanilla items have no sockets)
 S.SOCKET_MIN_ILVL = 100
 S.SOCKET_EPIC_ILVL = 151
 
@@ -1020,16 +1025,16 @@ end
 ------------------------------------------------------------------------------
 -- Adjustments by level and by hit cap
 ------------------------------------------------------------------------------
--- The presets are calibrated at level 70. A combat rating buys more
--- percentage the lower the level is, so at level 40 each rating point is
--- worth more than at 70. The TBC conversion is known:
+-- The presets are calibrated at the level cap (ns.MAX_LEVEL; 70 in TBC). A
+-- combat rating buys more percentage the lower the level is, so at level 40
+-- each rating point is worth more than at the cap. The TBC conversion is known:
 --
 --     level <= 10:  2/52      level 11..60: (level-8)/52      level 61..70: 82/(262-3*level)
 --
 -- and the rating points per 1% are (base * coefficient): at 70, 22.08 for
 -- crit (14 * 82/52); at 60, 14. The weight of a rating at level L is the weight
--- at 70 times coefficient(70) / coefficient(L). Only these ratings scale; the
--- editor keeps showing the level 70 weights. Turned off with
+-- at the cap times coefficient(cap) / coefficient(L). Only these ratings scale;
+-- the editor keeps showing the weights at the cap. Turned off with
 -- `filters.levelScale = false`.
 local RATING_KEYS = {
     hit = true, spellhit = true, crit = true, spellcrit = true,
@@ -1038,6 +1043,7 @@ local RATING_KEYS = {
 }
 S.RATING_KEYS = RATING_KEYS
 
+-- TBC: revisar para Forever (vanilla has no combat ratings; Forever unknown)
 local function ratingCoefficient(level)
     if level <= 10 then return 2 / 52 end
     if level <= 60 then return (level - 8) / 52 end
@@ -1045,8 +1051,9 @@ local function ratingCoefficient(level)
 end
 
 function S.RatingScale(level)
-    level = math.max(1, math.min(70, level or 70))
-    return ratingCoefficient(70) / ratingCoefficient(level)
+    local cap = ns.MAX_LEVEL
+    level = math.max(1, math.min(cap, level or cap))
+    return ratingCoefficient(cap) / ratingCoefficient(level)
 end
 
 -- Saved option that affects scoring without arriving in `filters`.
@@ -1057,11 +1064,11 @@ function S.Option(key)
 end
 
 local function scoreLevel(level)
-    return level or (ns.TargetLevel and ns:TargetLevel()) or ns.playerLevel or 70
+    return level or (ns.TargetLevel and ns:TargetLevel()) or ns.playerLevel or ns.MAX_LEVEL
 end
 
 -- Extra points from the ratings at this level. Starts from the cached score
--- (which is at level 70) plus (scale - 1) times what the item's ratings add.
+-- (which is at the level cap) plus (scale - 1) times what the item's ratings add.
 function S.LevelScaleAdjustment(item, weights, level)
     if not (item and weights and S.Option("levelScale")) then return 0 end
     local m = S.RatingScale(scoreLevel(level))
@@ -1080,17 +1087,18 @@ function S.LevelScaleAdjustment(item, weights, level)
     end
     -- Ratings that come from the ideal gems and the socket bonus scale like the
     -- ratings of the item itself; otherwise a socketed piece would be priced at
-    -- level 70 and everything else at the target level.
+    -- the level cap and everything else at the target level.
     local socket = S.SocketInfo(item, weights)
     if socket then add(socket.stats) end
     return (m - 1) * sum
 end
 
--- Hit cap (M-16). Optional and only at level 70, with your real hit:
--- `ns.hitRating` is read by Core with GetCombatRating. Declared values, at 70:
+-- Hit cap (M-16). Optional and only at the level cap, with your real hit:
+-- `ns.hitRating` is read by Core with GetCombatRating. Declared values, at 70 (TBC):
 -- 9% melee and ranged against a level 73 boss (142 rating) and 16% for spells
 -- (202). It does not count talents that lower the cap, so it is conservative:
 -- it never tells you that you have reached it when that is not true.
+-- TBC: revisar para Forever
 S.HIT_CAP = { hit = 142, spellhit = 202 }
 
 local function slotStat(slotID, key)
@@ -1108,7 +1116,8 @@ local function slotStat(slotID, key)
 end
 
 function S.HitCapActive(level)
-    return S.Option("hitCap") and ns.playerLevel == 70 and scoreLevel(level) == 70
+    return S.Option("hitCap") and ns.playerLevel == ns.MAX_LEVEL
+           and scoreLevel(level) == ns.MAX_LEVEL
            and ns.hitRating ~= nil
 end
 
@@ -1184,7 +1193,7 @@ function S.BestConsumables(level, weights, classToken)
         end
     end
     for id, entry in pairs(ns.consumables or {}) do
-        if (entry.req or 0) <= (level or 70) then
+        if (entry.req or 0) <= (level or ns.MAX_LEVEL) then
             if entry.st then
                 consider(entry.k, id, entry, S.StatsValue(entry.st, weights, level))
             elseif entry.k == "hp" or (entry.k == "mana" and MANA_CLASS[classToken]) then
@@ -1306,7 +1315,8 @@ function S.RouteAccess(source, filters)
     local access = source.access or 0
     if source.diff == 2 or (source.diff == 3 and filters
        and filters.dungeonMode == "heroic") then
-        access = math.max(70, access)
+        -- TBC: revisar para Forever (heroics opened at the cap)
+        access = math.max(ns.MAX_LEVEL, access)
     end
     return access
 end
@@ -1426,9 +1436,10 @@ end
 -- level 100 to 105 Outland rewards arrive, and from 65 to 69 the 115 to 125
 -- gear. An item with no source tying it to a level (vendor, chest) is only
 -- limited by its requirement, and this bounds it. Off by default: `ilvlCap`.
--- At level 70 there is no cap.
+-- At the level cap (ns.MAX_LEVEL) there is no cap.
+-- TBC: revisar para Forever (bands measured on the TBC data)
 function S.IlvlCap(level)
-    if not level or level >= 70 then return nil end
+    if not level or level >= ns.MAX_LEVEL then return nil end
     if level <= 57 then return level + 15 end
     if level <= 60 then return 105 end
     if level <= 64 then return 115 end
@@ -1746,7 +1757,7 @@ end
 -- First future level where this row has a different winner. It scans each
 -- level: eligibility, armor proficiency and weapon talents can change at
 -- different thresholds, so the winner is not a monotone function of level.
--- nil means this item remains first through 70. The single-entry cache avoids
+-- nil means this item remains first through the level cap. The single-entry cache avoids
 -- doing the scan again when the same open detail is repainted.
 --
 -- The scan is a job that can be run in slices (M-11): a client that finds the
@@ -1787,7 +1798,7 @@ function S.LifetimeJob(slotName, itemId, startLevel, weights, classToken,
                   next = startLevel + 1,
                   weights = weights, class = classToken, playerLevel = playerLevel,
                   filters = filters, current = stillFirst, done = false }
-    if not stillFirst or job.next > 70 then
+    if not stillFirst or job.next > ns.MAX_LEVEL then
         job.done = true
         lifetimeKey, lifetimeResult = key, { level = nil, current = stillFirst }
     end
@@ -1811,7 +1822,7 @@ function S.LifetimeStep(job, levels)
             break
         end
         job.next = job.next + 1
-        if job.next > 70 then job.done = true break end
+        if job.next > ns.MAX_LEVEL then job.done = true break end
     end
     if job.done then
         lifetimeKey, lifetimeResult = job.key, { level = job.level, current = job.current }
@@ -2097,7 +2108,7 @@ function S.EquippedItemID(slotID)
     return tonumber(link:match("item:(%d+)"))
 end
 
--- Live stat resolution via the client's GetItemStats, so ANY real item can be
+-- Live stat resolution via the client's C_Item.GetItemStats, so ANY real item can be
 -- scored even when it's not in the static DB (bridge until the pipeline data is
 -- in place; also covers items the DB doesn't contain). Locale-independent: the
 -- keys returned by GetItemStats are ITEM_MOD_* constants, not display text.
@@ -2129,8 +2140,7 @@ local SOCKET_KEY_ORDER = { 1, 2, 4, 8, 14 }
 
 -- Second return: the socket colors, as the pipeline writes them in `sk`, or nil.
 function S.LiveStats(link)
-    if type(GetItemStats) ~= "function" then return nil end
-    local t = GetItemStats(link)
+    local t = ns.API.ItemStats(link)
     if not t then return nil end
     local st, socketCount = {}, {}
     for k, v in pairs(t) do
@@ -2195,9 +2205,8 @@ end
 function S.LiveItem(link)
     local rolled = S.RolledItem(link)
     if rolled then return rolled end
-    if type(GetItemInfo) ~= "function" then return nil, "pending" end
     local id = tonumber((link or ""):match("item:(%d+)"))
-    local name, _, q, ilvl, req, _, _, _, equip, _, _, classID, subID, bind = GetItemInfo(link)
+    local name, _, q, ilvl, req, _, _, _, equip, _, _, classID, subID, bind = ns.API.ItemInfo(link)
     if not name then return nil, "pending" end
     if not equip or equip == "" or equip == "INVTYPE_NON_EQUIP" then
         return nil, "unpriceable"
@@ -2445,7 +2454,7 @@ function S.RankOf(itemId, targetLevel, weights, classToken, level, filters, slot
     if not def or not def.inv[item.slot] then return nil end
     if not passFilters(item, filters or {}, itemId) then return nil end
     local gate = S.ReachLevel(item, filters, itemId)
-    local effLevel = math.min(70, math.max(targetLevel or 0, gate))
+    local effLevel = math.min(ns.MAX_LEVEL, math.max(targetLevel or 0, gate))
     if gate > effLevel then return nil end
     if not S.Recommendable(item, classToken, effLevel, profileSpec(weights, classToken)) then return nil end
     if not S.CanUse(item, classToken, effLevel, false) then return nil end

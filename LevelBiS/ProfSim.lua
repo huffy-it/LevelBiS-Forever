@@ -3,7 +3,7 @@
 -- opinion: for every profession you do not have, rank the 17 slots as if you
 -- had it at the highest skill your CURRENT level allows (deliberately not
 -- the skill of the target level), and subtract the same ranking without it.
--- Swept over the levels from yours to 70 in steps of 5.
+-- Swept over the levels from yours to the cap (ns.MAX_LEVEL) in steps of 5.
 --
 -- It costs a full ranking per profession and level, so it only runs under
 -- /lbis profs sim, never in the window's refresh, and spreads itself over
@@ -17,6 +17,7 @@ local function Print(msg) ns.Print(msg) end
 
 -- Skill ceiling a level allows: Apprentice at 5, Journeyman at 10, Expert at 20,
 -- Artisan at 35, Master at 50. Declared from the game's own training rules.
+-- TBC: revisar para Forever (vanilla stops at Artisan, 300)
 function ns.SkillCap(level)
     if level >= 50 then return 375 end
     if level >= 35 then return 300 end
@@ -40,8 +41,9 @@ local function slotWord(name) return (ns.SLOT_LABEL and ns.SLOT_LABEL[name]) or 
 
 local function sweepLevels(from)
     local out, level = { from }, (math.floor(from / 5) + 1) * 5
-    while level < 70 do out[#out + 1] = level; level = level + 5 end
-    if from < 70 then out[#out + 1] = 70 end
+    local cap = ns.MAX_LEVEL
+    while level < cap do out[#out + 1] = level; level = level + 5 end
+    if from < cap then out[#out + 1] = cap end
     return out
 end
 

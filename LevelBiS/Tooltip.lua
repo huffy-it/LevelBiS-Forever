@@ -62,7 +62,7 @@ function ns.MarkFor(link)
     local hasStat = false
     for _ in pairs(live.st) do hasStat = true break end
     if not (hasStat or live.sk) then return nil end
-    local effLevel = math.min(70, math.max(tl or 0, live.req or 0))
+    local effLevel = math.min(ns.MAX_LEVEL, math.max(tl or 0, live.req or 0))
     if not S.CanUse(live, ns.playerClass, effLevel) then return nil end
     if not S.Recommendable(live, ns.playerClass, effLevel) then return nil end
     local slotName = ns.tooltipSlot or S.INVTYPE_SLOT[live.slot]
@@ -103,7 +103,7 @@ function ns.MarkFor(link)
 end
 
 -- True if this tooltip already carries our line. Asking the tooltip itself is
--- the only reliable check: OnTooltipSetItem fires again on every rebuild (bag
+-- the only reliable check: the item post-call fires again on every rebuild (bag
 -- items refresh while shown), and a rebuild wipes every line — so a remembered
 -- flag would suppress the re-add and the line would vanish after a frame.
 -- Exposed: the window's own hover adds sources too, and must not repeat what
@@ -121,15 +121,21 @@ end
 
 ns.TooltipMarked = function(tt) return alreadyMarked(tt) end
 
-local function addMark(tt)
+-- `data` is the tooltip data TooltipDataProcessor hands over; the link comes
+-- from the tooltip itself (it carries the roll) and, failing that, from data.
+local function addMark(tt, data)
     if not tt or LevelBiSCharDB == nil then return end
+    if type(tt.AddLine) ~= "function" then return end
     local settings = LevelBiSCharDB.settings
     if settings and settings.tooltip == false then return end
-    if not tt.GetItem then return end
-    local _, link = tt:GetItem()
+    local link
+    if type(tt.GetItem) == "function" then link = select(2, tt:GetItem()) end
+    if not link and type(data) == "table" then
+        link = data.hyperlink or (data.id and ("item:" .. data.id))
+    end
     if not link then return end
     -- Re-entrancy guard: our own tt:Show() below can drive the tooltip through
-    -- OnTooltipSetItem again before AddLine is visible to alreadyMarked, which
+    -- the item post-call again before AddLine is visible to alreadyMarked, which
     -- showed up as a duplicated line on unique items.
     if tt.__lbisBusy or alreadyMarked(tt) then return end
     -- pcall: a bug in scoring must never break the game's tooltip.
@@ -212,16 +218,13 @@ local function addMark(tt)
     tt.__lbisBusy = nil
 end
 
-local function hook(tt)
-    if not tt then return end
-    tt:HookScript("OnTooltipSetItem", addMark)
-end
-
+-- OnTooltipSetItem does not exist in the modern client: one post-call on the
+-- item tooltip type covers every tooltip that shows an item (GameTooltip,
+-- ItemRefTooltip, the comparison tooltips). Hooked once, at login.
+local hooked = false
 local ef = CreateFrame("Frame")
 ef:RegisterEvent("PLAYER_LOGIN")
 ef:SetScript("OnEvent", function()
-    hook(GameTooltip)
-    hook(ItemRefTooltip)
-    hook(ShoppingTooltip1)
-    hook(ShoppingTooltip2)
+    if hooked then return end
+    hooked = ns.API.HookItemTooltips(addMark)
 end)

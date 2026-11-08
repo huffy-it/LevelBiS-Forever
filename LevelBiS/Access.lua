@@ -46,8 +46,8 @@ local DEBOUNCE = 0.5          -- seconds: one refresh per burst of events
 -- Standing scale (one place, tested)
 ------------------------------------------------------------------------------
 -- cmangos SharedDefines.h ReputationRank: HATED=0 HOSTILE=1 UNFRIENDLY=2
--- NEUTRAL=3 FRIENDLY=4 HONORED=5 REVERED=6 EXALTED=7. The client's standingID
--- (GetFactionInfoByID, 3rd return) is 1=Hated ... 8=Exalted: one more. The
+-- NEUTRAL=3 FRIENDLY=4 HONORED=5 REVERED=6 EXALTED=7. The client's standing
+-- (C_Reputation.GetFactionDataByID(id).reaction) is 1=Hated ... 8=Exalted: one more. The
 -- pipeline emits cmangos' number untouched in `repr`; this is the only place
 -- that converts it.
 A.MIN_STANDING, A.MAX_STANDING = 1, 8
@@ -95,18 +95,18 @@ function A.Errors() return errors end
 ------------------------------------------------------------------------------
 -- Client adapters
 ------------------------------------------------------------------------------
--- 2.5.x (Gethe/wow-ui-source, branch classic_anniversary): GetFactionInfoByID
--- is the global every Classic client has; C_QuestLog.IsQuestFlaggedCompleted
--- exists in the generated API documentation of that branch (QuestLog system)
--- and GetQuestsCompleted is the older table form. Whatever is missing is nil.
+-- Forever (Mainline client): reputation comes from C_Reputation.GetFactionDataByID
+-- (a table; seen in the client on 7/11/2026), through ns.API.FactionStanding.
+-- C_QuestLog.IsQuestFlaggedCompleted is the modern quest check (to be confirmed
+-- in Forever); the global and GetQuestsCompleted stay as older forms. Whatever
+-- is missing is nil.
 
--- name, standingID (1..8) for a faction, or nil when the client has no answer
--- (API absent, faction unknown to this character, standingID 0 = unknown).
+-- name, standing (1..8) for a faction, or nil when the client has no answer
+-- (API absent, faction unknown to this character, standing 0 = unknown).
 function A.ReadFaction(factionID)
-    local fn = GetFactionInfoByID
-    if type(fn) ~= "function" then return nil end
-    local ok, name, _, standing = pcall(fn, factionID)
-    if not ok then remember("GetFactionInfoByID", name) return nil end
+    if not ns.API.HasFactionData() then return nil end
+    local ok, name, standing = pcall(ns.API.FactionStanding, factionID)
+    if not ok then remember("C_Reputation.GetFactionDataByID", name) return nil end
     if type(standing) ~= "number" or standing < A.MIN_STANDING
        or standing > A.MAX_STANDING then
         return nil
@@ -550,7 +550,7 @@ ns.ExtraCmd.access = function(rest)
     end
     print_(L["personal access, revision %d."]:format(revision))
     print_(L["  reputation: %s, %d of %d factions read."]:format(
-        type(GetFactionInfoByID) == "function" and "GetFactionInfoByID" or L["no API"],
+        ns.API.HasFactionData() and "C_Reputation.GetFactionDataByID" or L["no API"],
         known, total))
     print_(L["  quests: %s, %d of %d one-time quests completed."]:format(
         A.QuestAPI() or L["no API"], done, tracked))

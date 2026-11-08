@@ -14,6 +14,7 @@
 local ADDON, ns = ...
 local S = ns.Scoring
 local L = ns.L
+local API = ns.API
 
 local function Print(msg) ns.Print(msg) end
 
@@ -63,7 +64,7 @@ function ns.Evaluate(link, level)
     end
     if not item.slot then return nil, "unusable" end
     item.id = id
-    local effLevel = math.min(70, math.max(level, item.req or 0))
+    local effLevel = math.min(ns.MAX_LEVEL, math.max(level, item.req or 0))
     if not S.CanUse(item, ns.playerClass, effLevel) then return nil, "unusable" end
     if not S.Recommendable(item, ns.playerClass, effLevel, ns.activeSpec) then
         return nil, "unusable"
@@ -129,11 +130,11 @@ end
 ------------------------------------------------------------------------------
 -- M-1. Quest rewards
 ------------------------------------------------------------------------------
--- The price a vendor pays: the 11th value of GetItemInfo. Unknown until the
--- client has the item; an unknown price never decides anything.
+-- The price a vendor pays: the 11th value of C_Item.GetItemInfo. Unknown until
+-- the client has the item; an unknown price never decides anything.
 local function sellPrice(link, count)
-    if not link or type(GetItemInfo) ~= "function" then return nil end
-    local sp = select(11, GetItemInfo(link))
+    if not link then return nil end
+    local sp = select(11, API.ItemInfo(link))
     if type(sp) == "number" and sp > 0 then return sp * (count or 1) end
     return nil
 end
@@ -267,13 +268,12 @@ function ns.EquipLastAlert()
         Print(L["You cannot equip in combat."])
         return false
     end
-    if type(EquipItemByName) ~= "function" then
+    if not API.HasEquipItem() then
         Print(L["This client does not expose EquipItemByName."])
         return false
     end
     local slotID = S.SLOTS[lastAlert.slot] and S.SLOTS[lastAlert.slot].slot
-    local ok = pcall(EquipItemByName, lastAlert.link, slotID)
-    if not ok then pcall(EquipItemByName, lastAlert.link) end
+    API.EquipItem(lastAlert.link, slotID)
     lastAlert = nil
     return true
 end
@@ -431,11 +431,9 @@ end
 
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_LOGIN")
-f:RegisterEvent("QUEST_DETAIL")
-f:RegisterEvent("QUEST_COMPLETE")
-f:RegisterEvent("START_LOOT_ROLL")
-f:RegisterEvent("CONFIRM_LOOT_ROLL")
-f:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+-- Registered one by one: the modern client raises on a name it does not know.
+API.RegisterEvents(f, "QUEST_DETAIL", "QUEST_COMPLETE", "START_LOOT_ROLL",
+    "CONFIRM_LOOT_ROLL", "PLAYER_EQUIPMENT_CHANGED")
 f:SetScript("OnEvent", function(_, event, arg1)
     if event == "PLAYER_LOGIN" then
         -- BAG_UPDATE_DELAYED is confirmed in this client by PickItRight; it is

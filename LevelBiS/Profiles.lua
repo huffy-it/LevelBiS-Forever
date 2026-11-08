@@ -301,16 +301,16 @@ local function build()
     rule:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -10, -HEADER_H + 10)
 
     -- How items are scored, not which ones are in: the first three change the
-    -- number (the editor's weights are the level-70 ones), the fourth is the
+    -- number (the editor's weights are the ones at the level cap), the fourth is the
     -- bag warning. Same keys, same setters and same repaint as before.
     local function filters() return LevelBiSCharDB.settings.filters end
     local SCORE_SWITCHES = {
         { L["Level weights"], "levelScale",
-          L["Ratings (hit, crit, haste…) are worth more the lower the level. The editor weights are the level 70 ones; this box scales them to the target level."] },
+          L["Ratings (hit, crit, haste…) are worth more the lower the level. The editor weights are the level %d ones; this box scales them to the target level."]:format(ns.MAX_LEVEL) },
         { L["ilvl cap"], "ilvlCap",
           L["Heuristic: does not offer items with an ilvl far above the usual for that level. Useful with vendors and chests with no source level. It is not game data."] },
-        { L["Hit cap (70)"], "hitCap",
-          L["At level 70, hit above the cap adds nothing. Uses your current hit; does not count talents that lower the cap."] },
+        { L["Hit cap (%d)"]:format(ns.MAX_LEVEL), "hitCap",
+          L["At level %d, hit above the cap adds nothing. Uses your current hit; does not count talents that lower the cap."]:format(ns.MAX_LEVEL) },
         { L["Bag alerts"], nil,
           L["Warns in chat when an item in your bags is an upgrade for a slot. Only works while the main window is open: closing it turns the alerts off. /lbis equip equips it."] },
     }

@@ -4,9 +4,15 @@
 -- gold.
 --
 -- This is a memory, not a scanner. Only what already passed across your screen
--- is stored (AUCTION_ITEM_LIST_UPDATE); a price you have not seen is not
--- invented and its cell stays empty. Reading the results is client API, not a
--- request of ours to the internet.
+-- is stored; a price you have not seen is not invented and its cell stays
+-- empty. Reading the results is client API (C_AuctionHouse, through ns.API),
+-- not a request of ours to the internet. Two lists are read:
+--   * the offers of one item (ITEM_SEARCH_RESULTS_UPDATED): each offer carries
+--     its link, so the exact roll is known;
+--   * the browse list (AUCTION_HOUSE_BROWSE_RESULTS_UPDATED / _ADDED): one line
+--     per item with its cheapest price. Its item key does not say which random
+--     roll that price belongs to (whether `itemSuffix` is the roll is not
+--     confirmed), so only items that do not roll are taken from it.
 --
 -- A price belongs to a purchase, and for an item that rolls a random suffix or
 -- property the purchase is the item AND the roll: "Chestguard of the Bear" and
@@ -176,35 +182,11 @@ local function prune()
     end
 end
 
--- One page of results: keep the cheapest per-unit buyout of each (item, roll)
--- the addon knows about. The latest sighting of a variant replaces the previous
--- one -- a price that went up is as much a fact as one that went down -- and
--- touches no other variant. An offer whose roll the link does not name is
--- ignored.
-function P.Scan()
-    if not (GetNumAuctionItems and GetAuctionItemInfo and GetAuctionItemLink and ns.db) then
-        return 0
-    end
-    if not migrate() then return 0 end
-    local n = GetNumAuctionItems("list") or 0
-    local best = {}   -- best[id][key] = copper per unit
-    for i = 1, n do
-        local link = GetAuctionItemLink("list", i)
-        local id, roll = S.LinkIdentity(link)
-        local key = id and roll ~= nil and ns.db[id] and keyFor(id, roll)
-        if key then
-            -- Buyout is the tenth return since vanilla; count is the third.
-            local _, _, count, _, _, _, _, _, _, buyout = GetAuctionItemInfo("list", i)
-            if type(count) == "number" and count > 0 and type(buyout) == "number" and buyout > 0 then
-                local each = math.floor(buyout / count)
-                if validPrice(each) then
-                    local row = best[id]
-                    if not row then row = {}; best[id] = row end
-                    if not row[key] or each < row[key] then row[key] = each end
-                end
-            end
-        end
-    end
+-- Keeps the cheapest per-unit price of each (item, roll) the addon knows
+-- about from a list of offers. The latest sighting of a variant replaces the
+-- previous one -- a price that went up is as much a fact as one that went down
+-- -- and touches no other variant.
+local function record(best)
     local b = bucket(true)
     if not b then return 0 end
     local stamp, seen = now(), 0
@@ -221,6 +203,46 @@ function P.Scan()
     end
     if seen > 0 and ns.UI and ns.UI.OnPricesChanged then ns.UI.OnPricesChanged() end
     return seen
+end
+
+local function keep(best, id, key, each)
+    if not validPrice(each) then return end
+    local row = best[id]
+    if not row then row = {}; best[id] = row end
+    if not row[key] or each < row[key] then row[key] = each end
+end
+
+-- The offers of one item. An offer whose roll the link does not name is
+-- ignored.
+function P.Scan(itemKey)
+    if not (ns.db and itemKey) then return 0 end
+    if not migrate() then return 0 end
+    local best = {}   -- best[id][key] = copper per unit
+    for _, offer in ipairs(ns.API.ItemSearchResults(itemKey)) do
+        local id, roll = S.LinkIdentity(offer.link)
+        local key = id and roll ~= nil and ns.db[id] and keyFor(id, roll)
+        local count, buyout = offer.count, offer.buyout
+        if key and type(count) == "number" and count > 0
+           and type(buyout) == "number" and buyout > 0 then
+            keep(best, id, key, math.floor(buyout / count))
+        end
+    end
+    return record(best)
+end
+
+-- The browse list: fixed items only, since the line does not name a roll.
+function P.ScanBrowse()
+    if not ns.db then return 0 end
+    if not migrate() then return 0 end
+    local best = {}
+    for _, line in ipairs(ns.API.BrowseResults()) do
+        local id = tonumber(line.id)
+        if id and ns.db[id] and (line.suffix == nil or line.suffix == 0)
+           and kindOf(id) == "fixed" and type(line.each) == "number" then
+            keep(best, id, "0", math.floor(line.each))
+        end
+    end
+    return record(best)
 end
 
 -- copper, seconds since seen -- or nil when no price was ever seen, it has
@@ -283,12 +305,17 @@ end
 
 local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
-f:RegisterEvent("AUCTION_ITEM_LIST_UPDATE")
+-- The modern client raises on an event it does not know: one by one.
+ns.API.RegisterEvents(f, "ITEM_SEARCH_RESULTS_UPDATED", "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED",
+    "AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
 f:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON then
         InitDB()
         prune()
-    elseif event == "AUCTION_ITEM_LIST_UPDATE" then
-        pcall(P.Scan)
+    elseif event == "ITEM_SEARCH_RESULTS_UPDATED" then
+        pcall(P.Scan, arg1)
+    elseif event == "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED"
+        or event == "AUCTION_HOUSE_BROWSE_RESULTS_ADDED" then
+        pcall(P.ScanBrowse)
     end
 end)

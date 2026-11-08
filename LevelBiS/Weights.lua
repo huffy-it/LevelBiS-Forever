@@ -45,7 +45,9 @@ W.PRESET_REVISION = 5
 
 ------------------------------------------------------------------------------
 -- Talent-tab order per class (used to auto-detect the active spec at login).
--- Index = in-game talent tab index (1..3).
+-- Index = TBC talent tab index (1..3); in Forever, provisionally read as the
+-- client's specialization index until W.SPEC_IDS is known (see DetectSpec).
+-- TBC: revisar para Forever
 ------------------------------------------------------------------------------
 W.SPEC_TABS = {
     WARRIOR = { "Arms", "Fury", "Protection" },
@@ -358,49 +360,34 @@ function W.SpecsFor(classToken)
     return W.SPEC_LIST[classToken] or {}
 end
 
--- Points spent in one talent tab. The TBC Anniversary client has been seen
--- returning 0 from GetTalentTabInfo's pointsSpent for every tab, which made the
--- first spec win for everybody (documented by PickItRight against a real
--- 10/0/44 mage). Summing the rank of each talent is what reports the build
--- correctly; pointsSpent stays as the fallback for a client without
--- GetTalentInfo. tonumber() because a not-yet-synced value can arrive as "".
--- The extra parentheses keep select() to one value: tonumber() takes a second
--- argument as the base, and GetTalentInfo's next value is the talent's max
--- rank -- a 1-rank talent made it base 1, an error that stopped the login.
-local function tabPoints(tab)
-    local sum = 0
-    if type(GetNumTalents) == "function" and type(GetTalentInfo) == "function" then
-        for i = 1, (tonumber(GetNumTalents(tab)) or 0) do
-            sum = sum + (tonumber((select(5, GetTalentInfo(tab, i)))) or 0)
-        end
-    end
-    if sum == 0 and type(GetTalentTabInfo) == "function" then
-        sum = tonumber((select(3, GetTalentTabInfo(tab)))) or 0
-    end
-    return sum
-end
+-- Forever specialization IDs (second return of
+-- C_SpecializationInfo.GetSpecializationInfo) -> spec name in SPEC_LIST. The
+-- IDs are new to Forever (1490 was seen on 7/11/2026), not retail's, and the
+-- map has not been read from the client yet: empty until then (see SPEC.md,
+-- "Migración a WoW Forever"). Only IDs read from the client go here.
+W.SPEC_IDS = {}
 
--- Detect the current spec from talent points; falls back to first spec.
--- Second return: total points seen, so the caller can tell "no talents yet"
--- (or not synced yet) from a real detection.
+-- Detect the active spec from the client's specialization; falls back to the
+-- first spec. Second return: 1 when the client answered, 0 when it did not (no
+-- spec chosen yet, or no API), so the caller can tell a guess from a reading.
+--
+-- Until SPEC_IDS is filled, the client's spec index is read as the old talent
+-- tab order (Arms/Fury/Protection...). PROVISIONAL: it is only trusted when the
+-- client lists exactly as many specs as there were tabs, and `/lbis spec`
+-- overrides it either way.
 function W.DetectSpec(classToken)
     local tabs = W.SPEC_TABS[classToken]
     if not tabs then return nil, 0 end
-    if type(GetNumTalentTabs) ~= "function" then return tabs[1], 0 end
-    local best, bestPts, total = 1, -1, 0
-    for i = 1, (tonumber(GetNumTalentTabs()) or 3) do
-        local pts = tabPoints(i)
-        total = total + pts
-        if pts > bestPts then best, bestPts = i, pts end
-    end
-    return tabs[best] or tabs[1], total
+    local index, id = ns.API.ActiveSpec()
+    if not index then return tabs[1], 0 end
+    local known = id and W.SPEC_IDS[id]
+    if known then return known, 1 end
+    local count = ns.API.NumSpecs()
+    if (count == nil or count == #tabs) and tabs[index] then return tabs[index], 1 end
+    return tabs[1], 0
 end
 
--- Active talent group: 1 or 2. TBC Anniversary has dual specialization; a
--- client without it has a single group.
+-- Active talent group: 1 or 2 (Forever has dual specialization from level 40).
 function W.TalentGroup()
-    if type(GetActiveTalentGroup) == "function" then
-        return tonumber(GetActiveTalentGroup()) or 1
-    end
-    return 1
+    return ns.API.TalentGroup()
 end

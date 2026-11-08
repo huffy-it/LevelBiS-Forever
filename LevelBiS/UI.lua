@@ -387,7 +387,7 @@ end
 ns.SrcLines = srcLines
 
 local function iconFor(id)
-    local t = (GetItemIcon and GetItemIcon(id)) or (id and select(10, GetItemInfo(id)))
+    local t = ns.API.ItemIcon(id)
     return t or "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 
@@ -419,7 +419,7 @@ local function RecIcon_OnEnter(self)
     ns.tooltipSlot = nil
 
     -- Everything below is only for the case where the client could not draw
-    -- the roll itself. Tooltip.lua hooks OnTooltipSetItem, so SetHyperlink
+    -- the roll itself. Tooltip.lua hooks every item tooltip, so SetHyperlink
     -- above has already added the rank line, the roll and the sources; adding
     -- them again here is what put the roll on the tooltip twice.
     if not (ns.TooltipMarked and ns.TooltipMarked(GameTooltip)) then
@@ -449,8 +449,8 @@ end
 local function recommendedLink(itemId)
     local item = ns.db and ns.db[itemId]
     local vlink = ns.VariantLink and ns.VariantLink(itemId, item)
-    return vlink and select(2, GetItemInfo(vlink))
-           or select(2, GetItemInfo(itemId))
+    return vlink and select(2, ns.API.ItemInfo(vlink))
+           or select(2, ns.API.ItemInfo(itemId))
            or vlink
 end
 
@@ -472,10 +472,11 @@ local function modifiedClick(self)
     return true
 end
 
--- CS-4. The Blizzard auction globals are not confirmed for 2.5.x, so each one
--- is checked before it is used and the whole call sits inside pcall.
+-- CS-4. The modern auction house (AuctionHouseFrame) is not confirmed in the
+-- Forever client, so each piece is checked before it is used (ns.API) and the
+-- whole call sits inside pcall.
 function UI.AuctionOpen()
-    return AuctionFrame ~= nil and AuctionFrame.IsShown ~= nil and AuctionFrame:IsShown() or false
+    return ns.API.AuctionOpen()
 end
 
 function UI.SearchAuction(itemId)
@@ -483,17 +484,11 @@ function UI.SearchAuction(itemId)
     local variantId = item and (item.sg or item.pg) and ns.Scoring.BestVariant
                       and select(4, ns.Scoring.BestVariant(item, ns.weights)) or nil
     local name = ns.LocalName(itemId, item, variantId)
-    if not (BrowseName and AuctionFrameBrowse_Search) then
+    if not ns.API.CanSearchAuction() then
         ns.Print(L["Cannot find the Auction House search in this client."])
         return false
     end
-    local ok = pcall(function()
-        if AuctionFrameTab1 and AuctionFrameBrowse and not AuctionFrameBrowse:IsShown() then
-            AuctionFrameTab1:Click()
-        end
-        BrowseName:SetText(name)
-        AuctionFrameBrowse_Search()
-    end)
+    local ok = pcall(ns.API.SearchAuction, name)
     if not ok then ns.Print(L["The Auction House search failed; type the name by hand."]) end
     UI.lastSearch = name
     return ok
@@ -778,7 +773,7 @@ local function build()
     frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
     frame:SetScript("OnEvent", function(self, event, itemID, success)
         if event == "AUCTION_HOUSE_SHOW" or event == "AUCTION_HOUSE_CLOSED" then
-            -- AuctionFrame may still report itself shown while the close event
+            -- AuctionHouseFrame may still report itself shown while the close event
             -- arrives, so the hint is read a moment later.
             afterDelay(0.2, UI.RefreshHint)
             return
@@ -887,7 +882,7 @@ local function build()
     stepBtn("<", 236, 22, function()
         LevelBiSCharDB.targetLevel = math.max(1, ns:TargetLevel() - 1); UI:Refresh() end)
     stepBtn(">", 260, 22, function()
-        LevelBiSCharDB.targetLevel = math.min(70, ns:TargetLevel() + 1); UI:Refresh() end)
+        LevelBiSCharDB.targetLevel = math.min(ns.MAX_LEVEL, ns:TargetLevel() + 1); UI:Refresh() end)
     stepBtn(L["Current"], 286, 50, function()
         LevelBiSCharDB.targetLevel = nil; UI:Refresh() end)
     -- The rest of the level row, left to right: the goal, the dungeon
@@ -901,7 +896,7 @@ local function build()
     local difficultyX = goalX + GOAL_W + 6
     local phaseX = difficultyX + DIFFICULTY_W + 6
 
-    -- M-10: leveling or level 70, as one switch.
+    -- M-10: leveling or the level cap, as one switch.
     frame.goalBtn = stepBtn(L["Goal: leveling"], goalX, GOAL_W, function()
         ns.SetGoal(LevelBiSCharDB.settings.goal == "endgame" and "leveling" or "endgame")
         UI:Refresh()
@@ -909,7 +904,7 @@ local function build()
     frame.goalBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
         GameTooltip:SetText(L["Goal"])
-        GameTooltip:AddLine(L["Level 70 includes raids, heroic dungeons and the open phase, without the leveling exclusions. Going back to Leveling restores your filters and your target level."], 0.8, 0.8, 0.8, true)
+        GameTooltip:AddLine(L["Level %d includes raids, heroic dungeons and the open phase, without the leveling exclusions. Going back to Leveling restores your filters and your target level."]:format(ns.MAX_LEVEL), 0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
     frame.goalBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1348,7 +1343,9 @@ local function runJob(job, budget)
 end
 
 local function detailLifetime(slotName, best, level, filters)
-    if level >= 70 then return L["Lifetime: level 70; there are no later levels."] end
+    if level >= ns.MAX_LEVEL then
+        return L["Lifetime: level %d; there are no later levels."]:format(ns.MAX_LEVEL)
+    end
     local job = S.LifetimeJob(slotName, best.id, level, ns.weights, ns.playerClass,
                               ns.playerLevel, filters)
     if not job.done then
@@ -1381,7 +1378,7 @@ local function detailLifetime(slotName, best, level, filters)
     if changed then
         return L["Lifetime: first recommendation change at level %d."]:format(changed)
     end
-    return L["Lifetime: stays first until level 70."]
+    return L["Lifetime: stays first until level %d."]:format(ns.MAX_LEVEL)
 end
 
 -- The line under the detail: the best alternative without a random roll and
@@ -1458,7 +1455,7 @@ function UI.Perf()
     result.lifetime = timed(function()
         S.ClearLifetimeCache()
         local best = S.BestForSlot("head", tl, ns.weights, ns.playerClass, ns.playerLevel, filters)
-        if best and tl < 70 then
+        if best and tl < ns.MAX_LEVEL then
             S.FirstReplacementLevel("head", best.id, tl, ns.weights, ns.playerClass,
                                     ns.playerLevel, filters)
         end
@@ -1645,7 +1642,7 @@ function UI:Refresh()
     frame.filterSummary:SetText(UI.lastFilterSummary)
     frame.phaseBtn:SetText(L["Phase: %s"]:format(filters.maxPhase or S.CURRENT_PHASE))
     frame.goalBtn:SetText(LevelBiSCharDB.settings.goal == "endgame"
-        and L["Goal: level 70"] or L["Goal: leveling"])
+        and L["Goal: level %d"]:format(ns.MAX_LEVEL) or L["Goal: leveling"])
 
     for key, b in pairs(frame.tabs or {}) do
         b:SetSelected(key == (UI.tab or "gear"))
@@ -1933,7 +1930,7 @@ function UI:Refresh()
         local best, link = d.best, GetInventoryItemLink("player", d.def.slot)
         local equippedName = L["Empty slot"]
         if link then
-            equippedName = GetItemInfo(link) or L["Loading equipment…"]
+            equippedName = ns.API.ItemInfo(link) or L["Loading equipment…"]
         end
         local recName = ns.LocalName(best.id, best.item, select(4, S.BestVariant(best.item, ns.weights)))
         frame.detail.items:SetText(L["Replaces: %s"]:format(equippedName))
