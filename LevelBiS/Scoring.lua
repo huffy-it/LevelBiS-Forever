@@ -951,11 +951,12 @@ function S.SetBonus(item, weights, slotID)
 end
 
 -- An item the data could not fully price: a stat type with no documented
--- meaning (`nx`, ids new in Forever) or stat shares without a budget (`nb`).
--- It scores nothing rather than the sum of the stats that were read, which
--- would rank it as if the unknown stat were worth zero (pipeline/build_forever.py).
+-- meaning (`nx`), stat shares without a budget (`nb`), or a weapon whose
+-- damage no table gives (`nd`: Thunderfury, Atiesh). It scores nothing rather
+-- than the sum of the stats that were read, which would rank it as if the
+-- missing part were worth zero (pipeline/build_forever.py).
 function S.Unpriceable(item)
-    return item ~= nil and (item.nx ~= nil or item.nb ~= nil)
+    return item ~= nil and (item.nx ~= nil or item.nb ~= nil or item.nd ~= nil)
 end
 
 function S.Score(item, weights, slotID)
@@ -2161,6 +2162,12 @@ local NORM_MAP = {
     expertise_rating="expertise",
     spell_power="sp", spell_damage_done="sp", spell_healing_done="heal",
     mana_regeneration="mp5",
+    -- Keys the Forever client reports (read with pipeline/oracle_forever.py
+    -- on 8/11/2026): school spell damage, feral attack power (shown as melee
+    -- attack power) and mana regeneration from an equip spell.
+    holy_damage_done="holysp", fire_damage_done="firesp", nature_damage_done="naturesp",
+    frost_damage_done="frostsp", shadow_damage_done="shadowsp", arcane_damage_done="arcanesp",
+    melee_attack_power="feralap", power_regen0="mp5",
     defense_skill_rating="def", dodge_rating="dodge", parry_rating="parry",
     block_rating="block", block_value="blockval",
     spell_penetration="spen",

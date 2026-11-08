@@ -419,8 +419,10 @@ end
 -- 1486 Paladin, 1487 Priest, 1488 Rogue, 1489 Shaman, 1490 Warlock, 1491
 -- Warrior. So the ID (1490 was seen on 7/11/2026) names the class, not the
 -- talent tree, and cannot fill this map; neither can the name ("Warlock").
--- Reading the tree needs a talent API not yet confirmed on the client (see
--- SPEC.md, "Migración a WoW Forever", fase 2). Only IDs read from the client
+-- Reading the tree needs a talent API not yet confirmed on the client: the
+-- oracle (8/11/2026, a level 10 warlock) found GetNumSpecializations giving
+-- nothing, GetTalentTabInfo absent, and C_ClassTalents and C_Traits present
+-- (SPEC.md, "Migración a WoW Forever", fase 2). Only IDs read from the client
 -- that name a tree go here.
 W.SPEC_IDS = {}
 
