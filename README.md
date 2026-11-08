@@ -204,14 +204,29 @@ trinket1 trinket2 back mainhand offhand ranged`.
 
 ## Data
 
-The database includes 11,544 items generated from the open data of
-[cmangos tbc-db](https://github.com/cmangos/tbc-db) (TBC 2.4.3) and the client
-tables published on [wago.tools](https://wago.tools). Identifiers, stats and drop chances are never
-made up: if a piece of data is not in the source, it is left out.
+The Forever database (10,511 items) is generated from two sources:
+
+- **Stats** (stats, armor, weapon damage, requirements, set bonuses): the
+  WoW: Forever client tables published on [wago.tools](https://wago.tools)
+  (build 1.60.1, with hotfixes).
+- **Where items come from** (drops, quest rewards, vendors, with their levels
+  and zones): [QuestieDB](https://github.com/Questie/QuestieDB) by the Questie
+  team, release v1.0.10, used under the GPLv3. About half the items have a
+  source there; the rest (crafted gear, many world drops) are listed without
+  one, which means "not known", not "nowhere".
+
+Identifiers and stats are never made up: if a piece of data is not in the
+source, it is left out. There are no drop chances yet. The default weights are
+provisional (vanilla-era Pawn scales).
 
 ---
 
 ## License
 
-GPL-3.0. See [LICENSE](LICENSE). The item data is derived from
-[cmangos tbc-db](https://github.com/cmangos/tbc-db), which is also GPL-3.0.
+GPL-3.0. See [LICENSE](LICENSE). Item stats are read from the game's own
+client tables (via wago.tools). Item sources are derived from
+[QuestieDB](https://github.com/Questie/QuestieDB) (Questie team), used under
+the GPLv3; its LICENSE.md notes that the historic Questie content never had a
+single license and that the Questie team accepts GPLv3 use but cannot speak
+for every former contributor. Full credits and notices:
+[LevelBiS/THIRD-PARTY-NOTICES.txt](LevelBiS/THIRD-PARTY-NOTICES.txt).

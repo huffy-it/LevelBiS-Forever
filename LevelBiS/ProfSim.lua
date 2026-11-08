@@ -16,11 +16,12 @@ local L = ns.L
 local function Print(msg) ns.Print(msg) end
 
 -- Skill ceiling a level allows: Apprentice at 5, Journeyman at 10, Expert at 20,
--- Artisan at 35, Master at 50. Declared from the game's own training rules.
--- TBC: revisar para Forever (vanilla and Forever stop at Artisan, 300; Forever
--- has no Jewelcrafting -- FOREVER_RESEARCH.md, one source)
+-- Artisan at 35. Declared from the game's own training rules.
+-- Forever (reviewed 7/11/2026): professions stop at Artisan, 300, as in
+-- vanilla (FOREVER_RESEARCH.md, section 6: one source, and the same as the
+-- vanilla rules Forever starts from), so Master (375 at 50) is gone. Forever
+-- has no Jewelcrafting; nothing here offers it.
 function ns.SkillCap(level)
-    if level >= 50 then return 375 end
     if level >= 35 then return 300 end
     if level >= 20 then return 225 end
     if level >= 10 then return 150 end

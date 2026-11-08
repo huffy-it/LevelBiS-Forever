@@ -1,0 +1,44 @@
+LevelBiS Forever - third-party notices
+=======================================
+
+LevelBiS Forever is free software under the GNU General Public License v3.0
+(see LICENSE in the source repository, https://github.com/huffy-it/LevelBiS-Forever).
+The item database in the Data folder is generated from the sources below.
+
+
+1. Item sources (drops, quest rewards, vendors): QuestieDB
+----------------------------------------------------------
+
+Where each item comes from (the NPCs that drop it, the quests that reward it,
+the vendors that sell it, and their levels, zones and factions) is derived
+from QuestieDB by the Questie team:
+
+    https://github.com/Questie/QuestieDB
+    Release v1.0.10 (2 November 2026), asset QuestieDB-Forever.zip
+    SHA-256 7bd476d25e1f20f9716b9fc6f6415ba366c4600b6297a93f0e116f239136df83
+    Build commit a37877c1490027ee48e5722bf602adf34f95a6dc
+
+Credit: the Questie team and QuestieDB's contributors (code: Logonz; data:
+Muehe, TheCrux (BreakBB), Drejjmit, Dyaxler, Cheeq, TechnoHunter, Yttrium and
+everyone else who contributed, as QuestieDB credits them).
+
+It is used here under the GNU General Public License v3.0. Please note what
+QuestieDB's own LICENSE.md says about its licensing: the historic Questie
+content it was built from never had a single license; the Questie team accepts
+forks and copies under the GPLv3, but cannot promise that every former
+contributor does, and asks that content not otherwise covered be treated as
+"all rights reserved" when in doubt. The GPLv3 does not extend to the Questie
+name and logo; LevelBiS Forever uses neither, other than to credit the source.
+
+LevelBiS Forever does not include QuestieDB's code. Its pipeline decodes the
+release's data and writes the item sources into LevelBiS Forever's own format.
+
+
+2. Item stats: World of Warcraft: Forever client tables
+--------------------------------------------------------
+
+Item names, stats, armor, weapon damage, requirements and set bonuses are read
+from the game's client tables (build 1.60.1.70862, with hotfixes) as published
+by wago.tools (https://wago.tools). World of Warcraft is a trademark of
+Blizzard Entertainment, Inc.; LevelBiS Forever is not affiliated with or
+endorsed by Blizzard Entertainment.

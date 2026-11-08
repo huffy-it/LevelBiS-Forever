@@ -10,8 +10,12 @@ local L = ns.L
 ns.STAT_KEYS = {
     "str","agi","sta","int","spi",
     "ap","rap","feralap","sp","heal","mp5",
-    "hit","spellhit","crit","spellcrit","haste","spellhaste","expertise",
-    "dodge","parry","block","blockval","def","resil",
+    -- WoW: Forever has ONE hit, ONE crit and ONE haste for melee, ranged and
+    -- spells (FOREVER_RESEARCH.md, section 3; the client tables agree: items
+    -- carry stat types 31/32/36, never the melee/ranged/spell variants), so
+    -- the TBC spell copies are gone, and so is resilience (no item has it).
+    "hit","crit","haste","expertise",
+    "dodge","parry","block","blockval","def",
     "arcanesp","firesp","frostsp","holysp","naturesp","shadowsp","spen",
     -- `dps` is the weapon damage of whatever is in the slot; `rdps` is the
     -- same number when the slot is a bow, gun or thrown weapon. They are two
@@ -41,7 +45,15 @@ ns.Weights = W
 --    scoring 308, second only to his main hand.
 -- 5: parity with Pawn's published TBC scales for every supported stat. Removes
 --    the levelling adjustments to stamina, hunter mana and caster wand DPS.
-W.PRESET_REVISION = 5
+-- 6: WoW: Forever. Spell hit, crit and haste fold into hit, crit and haste
+--    (the larger of the two weights is kept), resilience is dropped.
+--    PROVISIONAL, see W.PRESETS_PROVISIONAL.
+W.PRESET_REVISION = 6
+
+-- The presets are a provisional start for WoW: Forever, not Forever scales.
+-- Nobody has published Forever weights yet (FOREVER_RESEARCH.md, section 9).
+-- Shown wherever the weights are named, so nobody mistakes them for tuned ones.
+W.PRESETS_PROVISIONAL = true
 
 ------------------------------------------------------------------------------
 -- Talent-tab order per class (used to auto-detect the active spec at login).
@@ -50,7 +62,11 @@ W.PRESET_REVISION = 5
 -- Forever keeps the classic talent trees, 3 per class (27 specs, several
 -- sources in FOREVER_RESEARCH.md), so the count check in DetectSpec holds; the
 -- shaman's first tree may be named "Elemental Combat" there.
--- TBC: revisar para Forever
+-- Forever (reviewed 7/11/2026): the tree names stay. The client's
+-- specialization is one per CLASS in Forever (ChrSpecialization has nine
+-- rows, one per class, named after it -- see W.SPEC_IDS), so neither its
+-- index nor its name can tell the tree; DetectSpec then falls back to the
+-- first tree and says it guessed. `/lbis spec` sets it by hand.
 ------------------------------------------------------------------------------
 W.SPEC_TABS = {
     WARRIOR = { "Arms", "Fury", "Protection" },
@@ -80,7 +96,19 @@ W.SPEC_LIST = {
 ------------------------------------------------------------------------------
 -- Default presets.
 --
--- These are the published TBC 2.4.3 Pawn scales, derived from Elitist Jerks
+-- PROVISIONAL FOR WoW: FOREVER (revision 6). These are Pawn's "Classic"
+-- scales by HawsJon (Pawn/ClassicHawsJon.lua), which Pawn uses for Classic Era
+-- (vanilla 1.12) and for Burning Crusade Classic alike: the same weights, with
+-- each rating weight multiplied by its rating-per-percent on Classic Era only,
+-- because there the stats are percentages. Forever items carry ratings (crit
+-- and hit come out of the item budget as 14 and 10 per vanilla 1%, the TBC
+-- level-60 conversion -- pipeline/forever_items.py), so the rating-unit
+-- weights apply as they are. Forever's own changes (one hit and crit for
+-- everyone, expertise, healing that also gives spell power, reworked talents)
+-- are NOT priced in beyond folding the spell copies of hit, crit and haste
+-- into one key, keeping the larger weight of each pair.
+--
+-- They are the published TBC 2.4.3 Pawn scales, derived from Elitist Jerks
 -- and maxdps at the time, one per class and spec, normalised so that the
 -- spec's primary stat is 1 -- strength for a strength melee, agility for an
 -- agility melee, intellect for a healer, spell damage for a caster, stamina
@@ -126,103 +154,118 @@ local T = {}
 
 T.arms = { str=1, agi=0.69, sta=0.1, spi=0.05, ap=0.45, hit=1, crit=0.85,
            haste=0.57, expertise=1, dodge=0.05, parry=0.05, def=0.05,
-           resil=0.2, armor=0.005, dps=5.31, rdps=0 }
-T.fury = { str=1, agi=0.57, sta=0.1, spi=0.05, ap=0.54, hit=0.57,
-           crit=0.7, haste=0.41, expertise=0.57, dodge=0.05, parry=0.12,
-           def=0.05, resil=0.2, armor=0.005, dps=5.22, rdps=0 }
+           armor=0.005, dps=5.31, rdps=0 }
+
+T.fury = { str=1, agi=0.57, sta=0.1, spi=0.05, ap=0.54, hit=0.57, crit=0.7,
+           haste=0.41, expertise=0.57, dodge=0.05, parry=0.12, def=0.05,
+           armor=0.005, dps=5.22, rdps=0 }
+
 T.warprot = { str=0.33, agi=0.59, sta=1, spi=0.05, ap=0.06, hit=0.67,
               crit=0.28, haste=0.21, expertise=0.67, dodge=0.7, parry=0.58,
-              block=0.59, blockval=0.35, def=0.81, resil=0.2, armor=0.02,
-              dps=3.13, rdps=0 }
+              block=0.59, blockval=0.35, def=0.81, armor=0.02, dps=3.13,
+              rdps=0 }
+
 T.ret = { str=1, agi=0.64, sta=0.1, int=0.34, spi=0.05, ap=0.41, sp=0.33,
-          mp5=1, hit=0.84, spellhit=0.21, crit=0.66, spellcrit=0.12,
-          haste=0.25, spellhaste=0.04, expertise=0.87, dodge=0.05,
-          parry=0.05, def=0.05, resil=0.2, holysp=0.33, spen=0.015,
-          armor=0.005, dps=5.4, rdps=0 }
+          mp5=1, hit=0.84, crit=0.66, haste=0.25, expertise=0.87, dodge=0.05,
+          parry=0.05, def=0.05, holysp=0.33, spen=0.015, armor=0.005,
+          dps=5.4, rdps=0 }
+
 T.palaprot = { str=0.2, agi=0.6, sta=1, int=0.5, spi=0.05, ap=0.06, sp=0.44,
-               mp5=1, hit=0.16, spellhit=0.78, crit=0.15, spellcrit=0.6,
-               haste=0.5, spellhaste=0.12, expertise=0.27, dodge=0.7,
-               parry=0.6, block=0.6, blockval=0.15, def=0.7, resil=0.2,
+               mp5=1, hit=0.78, crit=0.6, haste=0.5, expertise=0.27,
+               dodge=0.7, parry=0.6, block=0.6, blockval=0.15, def=0.7,
                holysp=0.44, spen=0.03, armor=0.02, dps=1.77, rdps=0 }
+
 T.palaholy = { agi=0.05, sta=0.1, int=1, spi=0.28, heal=0.54, mp5=1.24,
-               spellcrit=0.46, spellhaste=0.39, dodge=0.05, parry=0.05,
-               block=0.01, def=0.05, resil=0.2, armor=0.005, rdps=0 }
+               crit=0.46, haste=0.39, dodge=0.05, parry=0.05, block=0.01,
+               def=0.05, armor=0.005, rdps=0 }
+
 T.huntbm = { str=0.05, agi=1, sta=0.1, int=0.8, spi=0.05, ap=0.43, rap=0.43,
-             mp5=2.4, hit=1, crit=0.8, haste=0.5, expertise=0.05,
-             dodge=0.05, parry=0.05, def=0.05, resil=0.2, armor=0.005,
-             dps=0.75, rdps=2.4 }
+             mp5=2.4, hit=1, crit=0.8, haste=0.5, expertise=0.05, dodge=0.05,
+             parry=0.05, def=0.05, armor=0.005, dps=0.75, rdps=2.4 }
+
 T.huntmm = { str=0.05, agi=1, sta=0.1, int=0.9, spi=0.05, ap=0.55, rap=0.55,
-             mp5=2.4, hit=1, crit=0.6, haste=0.4, expertise=0.05,
-             dodge=0.05, parry=0.05, def=0.05, resil=0.2, armor=0.005,
-             dps=0.75, rdps=2.6 }
+             mp5=2.4, hit=1, crit=0.6, haste=0.4, expertise=0.05, dodge=0.05,
+             parry=0.05, def=0.05, armor=0.005, dps=0.75, rdps=2.6 }
+
 T.huntsv = { str=0.05, agi=1, sta=0.1, int=0.8, spi=0.05, ap=0.55, rap=0.55,
              mp5=2.4, hit=1, crit=0.65, haste=0.4, expertise=0.05,
-             dodge=0.05, parry=0.05, def=0.05, resil=0.2, armor=0.005,
-             dps=1, rdps=2.4 }
+             dodge=0.05, parry=0.05, def=0.05, armor=0.005, dps=1, rdps=2.4 }
+
 T.rogue = { str=0.5, agi=1, sta=0.1, spi=0.05, ap=0.45, hit=1, crit=0.81,
             haste=0.9, expertise=1.1, dodge=0.05, parry=0.12, def=0.05,
-            resil=0.2, armor=0.005, dps=3, rdps=0 }
+            armor=0.005, dps=3, rdps=0 }
+
 T.priestholy = { agi=0.05, sta=0.1, int=1, spi=0.73, heal=0.81, mp5=1.35,
-                 spellcrit=0.24, spellhaste=0.6, dodge=0.05, parry=0.05,
-                 def=0.05, resil=0.2, armor=0.005, rdps=0 }
+                 crit=0.24, haste=0.6, dodge=0.05, parry=0.05, def=0.05,
+                 armor=0.005, rdps=0 }
+
 T.priestdisc = { agi=0.05, sta=0.1, int=1, spi=0.48, heal=0.72, mp5=1.19,
-                 spellcrit=0.32, spellhaste=0.57, dodge=0.05, parry=0.05,
-                 def=0.05, resil=0.2, armor=0.005, rdps=0 }
+                 crit=0.32, haste=0.57, dodge=0.05, parry=0.05, def=0.05,
+                 armor=0.005, rdps=0 }
+
 T.priestshadow = { agi=0.05, sta=0.1, int=0.19, spi=0.21, sp=1, mp5=1,
-                   spellhit=1.12, spellcrit=0.76, spellhaste=0.65, dodge=0.05,
-                   parry=0.05, def=0.05, resil=0.2, shadowsp=1, spen=0.08,
-                   armor=0.005, rdps=0 }
-T.shamele = { agi=0.05, sta=0.1, int=0.31, spi=0.09, sp=1, mp5=1.14,
-              spellhit=0.9, spellcrit=1.05, spellhaste=0.9, dodge=0.05,
-              parry=0.12, block=0.01, def=0.05, resil=0.2, naturesp=1,
-              spen=0.38, armor=0.005, rdps=0 }
+                   hit=1.12, crit=0.76, haste=0.65, dodge=0.05, parry=0.05,
+                   def=0.05, shadowsp=1, spen=0.08, armor=0.005, rdps=0 }
+
+T.shamele = { agi=0.05, sta=0.1, int=0.31, spi=0.09, sp=1, mp5=1.14, hit=0.9,
+              crit=1.05, haste=0.9, dodge=0.05, parry=0.12, block=0.01,
+              def=0.05, naturesp=1, spen=0.38, armor=0.005, rdps=0 }
+
 T.shamenh = { str=1, agi=0.87, sta=0.1, int=0.34, spi=0.05, ap=0.5, sp=0.3,
-              mp5=1, hit=0.67, spellhit=0.223, crit=0.98, spellcrit=0.326,
-              haste=0.64, spellhaste=0.08, expertise=1.5, dodge=0.05,
-              parry=0.05, def=0.05, resil=0.2, naturesp=0.3, spen=0.11,
+              mp5=1, hit=0.67, crit=0.98, haste=0.64, expertise=1.5,
+              dodge=0.05, parry=0.05, def=0.05, naturesp=0.3, spen=0.11,
               armor=0.005, dps=3, rdps=0 }
+
 T.shamresto = { agi=0.05, sta=0.1, int=1, spi=0.61, heal=0.9, mp5=1.33,
-                spellcrit=0.48, spellhaste=0.74, dodge=0.05, parry=0.05,
-                block=0.01, def=0.05, resil=0.2, armor=0.005, rdps=0 }
+                crit=0.48, haste=0.74, dodge=0.05, parry=0.05, block=0.01,
+                def=0.05, armor=0.005, rdps=0 }
+
 T.magearcane = { agi=0.05, sta=0.1, int=0.46, spi=0.59, sp=1, mp5=1.13,
-                 spellhit=0.87, spellcrit=0.6, spellhaste=0.59, dodge=0.05,
-                 parry=0.05, def=0.05, resil=0.2, arcanesp=0.88, firesp=0.064,
-                 frostsp=0.52, spen=0.09, armor=0.005, rdps=0 }
+                 hit=0.87, crit=0.6, haste=0.59, dodge=0.05, parry=0.05,
+                 def=0.05, arcanesp=0.88, firesp=0.064, frostsp=0.52,
+                 spen=0.09, armor=0.005, rdps=0 }
+
 T.magefire = { agi=0.05, sta=0.1, int=0.44, spi=0.066, sp=1, mp5=0.9,
-               spellhit=0.93, spellcrit=0.77, spellhaste=0.82, dodge=0.05,
-               parry=0.05, def=0.05, resil=0.2, arcanesp=0.168, firesp=0.94,
-               frostsp=0.32, spen=0.09, armor=0.005, rdps=0 }
+               hit=0.93, crit=0.77, haste=0.82, dodge=0.05, parry=0.05,
+               def=0.05, arcanesp=0.168, firesp=0.94, frostsp=0.32,
+               spen=0.09, armor=0.005, rdps=0 }
+
 T.magefrost = { agi=0.05, sta=0.1, int=0.37, spi=0.06, sp=1, mp5=0.8,
-                spellhit=1.22, spellcrit=0.58, spellhaste=0.63, dodge=0.05,
-                parry=0.05, def=0.05, resil=0.2, arcanesp=0.13, firesp=0.05,
-                frostsp=0.95, spen=0.07, armor=0.005, rdps=0 }
-T.lockafl = { agi=0.05, sta=0.1, int=0.4, spi=0.1, sp=1, mp5=1, spellhit=1.2,
-              spellcrit=0.39, spellhaste=0.78, dodge=0.05, parry=0.05,
-              def=0.05, resil=0.2, firesp=0.35, shadowsp=0.91, spen=0.08,
-              armor=0.005, rdps=0 }
-T.lockdemo = { agi=0.05, sta=0.1, int=0.4, spi=0.5, sp=1, mp5=1, spellhit=1.2,
-               spellcrit=0.66, spellhaste=0.7, dodge=0.05, parry=0.05,
-               def=0.05, resil=0.2, firesp=0.8, shadowsp=0.8, spen=0.08,
-               armor=0.005, rdps=0 }
+                hit=1.22, crit=0.58, haste=0.63, dodge=0.05, parry=0.05,
+                def=0.05, arcanesp=0.13, firesp=0.05, frostsp=0.95,
+                spen=0.07, armor=0.005, rdps=0 }
+
+T.lockafl = { agi=0.05, sta=0.1, int=0.4, spi=0.1, sp=1, mp5=1, hit=1.2,
+              crit=0.39, haste=0.78, dodge=0.05, parry=0.05, def=0.05,
+              firesp=0.35, shadowsp=0.91, spen=0.08, armor=0.005, rdps=0 }
+
+T.lockdemo = { agi=0.05, sta=0.1, int=0.4, spi=0.5, sp=1, mp5=1, hit=1.2,
+               crit=0.66, haste=0.7, dodge=0.05, parry=0.05, def=0.05,
+               firesp=0.8, shadowsp=0.8, spen=0.08, armor=0.005, rdps=0 }
+
 T.lockdest = { agi=0.05, sta=0.1, int=0.34, spi=0.25, sp=1, mp5=0.65,
-               spellhit=1.6, spellcrit=0.87, spellhaste=1.15, dodge=0.05,
-               parry=0.05, def=0.05, resil=0.2, firesp=0.23, shadowsp=0.95,
-               spen=0.08, armor=0.005, rdps=0 }
+               hit=1.6, crit=0.87, haste=1.15, dodge=0.05, parry=0.05,
+               def=0.05, firesp=0.23, shadowsp=0.95, spen=0.08, armor=0.005,
+               rdps=0 }
+
 T.druidbal = { agi=0.05, sta=0.1, int=0.38, spi=0.34, sp=1, mp5=0.58,
-               spellhit=1.21, spellcrit=0.62, spellhaste=0.8, dodge=0.05,
-               parry=0.05, def=0.05, resil=0.2, arcanesp=0.64, naturesp=0.43,
-               spen=0.21, armor=0.005, rdps=0 }
+               hit=1.21, crit=0.62, haste=0.8, dodge=0.05, parry=0.05,
+               def=0.05, arcanesp=0.64, naturesp=0.43, spen=0.21,
+               armor=0.005, rdps=0 }
+
 T.druidcat = { str=1.48, agi=1, sta=0.1, int=0.1, spi=0.05, ap=0.59,
                feralap=0.59, heal=0.025, mp5=0.3, hit=0.61, crit=0.59,
                haste=0.43, expertise=0.61, dodge=0.05, parry=0.05, def=0.05,
-               resil=0.2, armor=0.02, rdps=0 }
+               armor=0.02, rdps=0 }
+
 T.druidbear = { str=0.2, agi=0.48, sta=1, int=0.1, spi=0.05, ap=0.34,
                 feralap=0.34, heal=0.025, mp5=0.3, hit=0.16, crit=0.15,
-                haste=0.31, expertise=0.18, dodge=0.38, def=0.26, resil=0.2,
+                haste=0.31, expertise=0.18, dodge=0.38, def=0.26,
                 naturesp=0.025, armor=0.1, rdps=0 }
+
 T.druidresto = { agi=0.05, sta=0.1, int=1, spi=0.87, heal=1.21, mp5=1.7,
-                 spellcrit=0.35, spellhaste=0.49, dodge=0.05, parry=0.05,
-                 def=0.05, resil=0.2, armor=0.005, rdps=0 }
+                 crit=0.35, haste=0.49, dodge=0.05, parry=0.05, def=0.05,
+                 armor=0.005, rdps=0 }
 
 W.PRESETS = {
     WARRIOR = { ["Arms"]=T.arms, ["Fury"]=T.fury, ["Protection"]=T.warprot },
@@ -262,14 +305,16 @@ W.PRESETS = {
 W.PAWN_MAP = {
     Strength="str", Agility="agi", Stamina="sta", Intellect="int", Spirit="spi",
     Ap="ap", Rap="rap", FeralAp="feralap",
-    HitRating="hit", SpellHitRating="spellhit",
-    CritRating="crit", SpellCritRating="spellcrit",
-    HasteRating="haste", SpellHasteRating="spellhaste",
+    -- Forever has one hit, crit and haste: a scale that lists both the melee
+    -- and the spell version lands on one key, keeping the larger weight
+    -- (ImportPawn). Resilience does not exist in Forever and is ignored.
+    HitRating="hit", SpellHitRating="hit",
+    CritRating="crit", SpellCritRating="crit",
+    HasteRating="haste", SpellHasteRating="haste",
     ExpertiseRating="expertise",
     SpellDamage="sp", Healing="heal", Mp5="mp5", SpellPenetration="spen",
     DodgeRating="dodge", ParryRating="parry", BlockRating="block",
-    BlockValue="blockval", DefenseRating="def", Resilience="resil",
-    ResilienceRating="resil",
+    BlockValue="blockval", DefenseRating="def",
     Armor="armor", MeleeDps="dps", RangedDps="rdps",
     ArcaneSpellDamage="arcanesp", FireSpellDamage="firesp",
     FrostSpellDamage="frostsp", HolySpellDamage="holysp",
@@ -284,12 +329,11 @@ do
     local pref = {
         str="Strength", agi="Agility", sta="Stamina", int="Intellect", spi="Spirit",
         ap="Ap", rap="Rap", feralap="FeralAp",
-        hit="HitRating", spellhit="SpellHitRating",
-        crit="CritRating", spellcrit="SpellCritRating", haste="HasteRating",
-        spellhaste="SpellHasteRating", expertise="ExpertiseRating",
+        hit="HitRating", crit="CritRating", haste="HasteRating",
+        expertise="ExpertiseRating",
         sp="SpellDamage", heal="Healing", mp5="Mp5", spen="SpellPenetration",
         dodge="DodgeRating", parry="ParryRating", block="BlockRating",
-        blockval="BlockValue", def="DefenseRating", resil="Resilience",
+        blockval="BlockValue", def="DefenseRating",
         armor="Armor", dps="MeleeDps", rdps="RangedDps",
         arcanesp="ArcaneSpellDamage", firesp="FireSpellDamage",
         frostsp="FrostSpellDamage", holysp="HolySpellDamage",
@@ -311,7 +355,12 @@ function W.ImportPawn(str)
     for stat, val in body:gmatch("([%a][%w]*)%s*=%s*(-?%d*%.?%d+)") do
         local key = W.PAWN_MAP[stat]
         if key then
-            weights[key] = tonumber(val); found = true
+            -- Two Pawn stats can share a key (HitRating and SpellHitRating
+            -- are both `hit` in Forever): the larger weight wins, so a caster
+            -- scale's spell hit is not undone by its melee hit of zero.
+            local v = tonumber(val)
+            if weights[key] == nil or v > weights[key] then weights[key] = v end
+            found = true
         elseif stat ~= "Class" and stat ~= "Spec" and not ignoredSet[stat] then
             ignoredSet[stat] = true
             ignored[#ignored + 1] = stat
@@ -364,10 +413,15 @@ function W.SpecsFor(classToken)
 end
 
 -- Forever specialization IDs (second return of
--- C_SpecializationInfo.GetSpecializationInfo) -> spec name in SPEC_LIST. The
--- IDs are new to Forever (1490 was seen on 7/11/2026), not retail's, and the
--- map has not been read from the client yet: empty until then (see SPEC.md,
--- "Migración a WoW Forever"). Only IDs read from the client go here.
+-- C_SpecializationInfo.GetSpecializationInfo) -> spec name in SPEC_LIST.
+-- Forever's ChrSpecialization table (wago.tools, build 1.60.1.70862) has ONE
+-- row per class, named after the class: 1482 Mage, 1484 Druid, 1485 Hunter,
+-- 1486 Paladin, 1487 Priest, 1488 Rogue, 1489 Shaman, 1490 Warlock, 1491
+-- Warrior. So the ID (1490 was seen on 7/11/2026) names the class, not the
+-- talent tree, and cannot fill this map; neither can the name ("Warlock").
+-- Reading the tree needs a talent API not yet confirmed on the client (see
+-- SPEC.md, "Migración a WoW Forever", fase 2). Only IDs read from the client
+-- that name a tree go here.
 W.SPEC_IDS = {}
 
 -- Classic tree names the client may report for a spec whose name here differs.

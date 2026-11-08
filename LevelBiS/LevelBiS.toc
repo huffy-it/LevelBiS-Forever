@@ -25,7 +25,6 @@ Data\sets.lua
 Data\items_01_20.lua
 Data\items_21_40.lua
 Data\items_41_60.lua
-Data\items_61_70.lua
 Data\consumables.lua
 Core.lua
 UI.lua

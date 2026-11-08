@@ -29,12 +29,10 @@ local STAT_LABEL = {
     ap = L["Attack Power"], rap = L["Ranged Attack Power"],
     feralap = L["Feral Attack Power"],
     sp = L["Spell Damage"], heal = L["Healing"], mp5 = L["Mana per 5 sec."],
-    hit = L["Hit Rating"], spellhit = L["Spell Hit Rating"],
-    crit = L["Crit Rating"], spellcrit = L["Spell Crit Rating"],
-    haste = L["Haste Rating"], spellhaste = L["Spell Haste Rating"],
+    hit = L["Hit Rating"], crit = L["Crit Rating"], haste = L["Haste Rating"],
     expertise = L["Expertise Rating"],
     dodge = L["Dodge Rating"], parry = L["Parry Rating"], block = L["Block Rating"],
-    blockval = L["Block Value"], def = L["Defense Rating"], resil = L["Resilience Rating"],
+    blockval = L["Block Value"], def = L["Defense Rating"],
     arcanesp = L["Arcane Spell Damage"], firesp = L["Fire Spell Damage"],
     frostsp = L["Frost Spell Damage"], holysp = L["Holy Spell Damage"],
     naturesp = L["Nature Spell Damage"], shadowsp = L["Shadow Spell Damage"],
@@ -257,7 +255,11 @@ local function build()
     frame.note = text(frame, FONT_BODY, 10, C.mist, "OVERLAY")
     frame.note:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -60)
     frame.note:SetWidth(PANEL_W - 200); frame.note:SetJustifyH("LEFT")
-    frame.note:SetText(L["Saved per class and spec. Enter applies, and the main window updates instantly."])
+    local note = L["Saved per class and spec. Enter applies, and the main window updates instantly."]
+    if ns.Weights.PRESETS_PROVISIONAL then
+        note = note .. " " .. L["The presets are provisional: vanilla-era scales until WoW: Forever weights exist."]
+    end
+    frame.note:SetText(note)
 
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -2)

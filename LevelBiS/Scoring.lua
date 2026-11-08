@@ -44,7 +44,10 @@ local RACE_BIT = {
 --
 -- The shaman is the only one whose dual wield is a talent rather than a
 -- trainer skill: Enhancement, five tiers in, so twenty points, so level forty.
--- TBC: revisar para Forever
+-- Forever (reviewed 7/11/2026, kept as is): rogue 10 and warrior/hunter 20 are
+-- vanilla's trainer rules too. The shaman line is TBC's: vanilla shamans
+-- could not dual wield at all, and nothing read so far says whether Forever's
+-- reworked Enhancement tree has it. Check on the client (SPEC.md, fase 2).
 local DUAL_WIELD = {
     ROGUE   = { level = 10 },
     WARRIOR = { level = 20 },
@@ -77,7 +80,10 @@ end
 --   2h      the main hand must be a two-handed weapon, and nothing beside it
 --   shield  the off hand must be a shield
 --   dual    the off hand must be a weapon
--- TBC: revisar para Forever
+-- Forever (reviewed 7/11/2026, kept as is): Mortal Strike, Shield Slam/Shield
+-- Block, Two-Handed Weapon Specialization and Dual Wield Specialization are
+-- classic-tree talents and Forever keeps the classic trees, but its talents
+-- were rebalanced: the levels are TBC's and unconfirmed (SPEC.md, fase 2).
 local SPEC_WEAPON = {
     WARRIOR = {
         ["Arms"]       = { want = "2h",     level = 40 },  -- Mortal Strike
@@ -307,7 +313,9 @@ end
 -- `repf` (Logistics Officer Ulrike sells the Honor Hold sets for reputation,
 -- not for honor), and calling them PvP would hide them behind a filter that is
 -- on by default.
--- TBC: revisar para Forever
+-- Forever (reviewed 7/11/2026): inert. These are TBC/vanilla NPC ids and the
+-- Forever data carries no sources at all (pipeline/build_forever.py), so no
+-- route can name them. Kept for when a source exists; check the ids then.
 local PVP_VENDORS = {
     [12781] = true,   -- Master Sergeant Biggins          Insignia of the Alliance
     [12793] = true,   -- Brave Stonehide                  Insignia of the Horde
@@ -377,7 +385,11 @@ end
 --
 -- Not tracked, because the data has no handle for them: reputation vendors and
 -- badge gear of the later phases, arena seasons.
--- TBC: revisar para Forever
+-- Forever (reviewed 7/11/2026): inert, and the names are TBC's. Without
+-- sources no item is tied to an instance, so the phase filter holds nothing
+-- back; Forever's own content schedule (new raids from 9/12/2026) is not a
+-- phase list anyone has confirmed. The phase button stays until Lucas
+-- decides what to do with it (SPEC.md, fase 2).
 S.PHASE = {
     inst = {
         ["Serpentshrine Cavern"] = 2, ["The Eye"] = 2,
@@ -719,8 +731,9 @@ end
 --   * S.WeaponAdjustment is about swing speed and damage; sockets do not apply.
 --   * The detail's stat changes (UI detailStats) list the item's own stats on
 --     purpose: the ideal gems are a hypothesis, not a stat the item has.
--- TBC: revisar para Forever (vanilla items have no sockets; Forever probably
--- has neither sockets nor gems -- FOREVER_RESEARCH.md -- unconfirmed, kept)
+-- Forever (reviewed 7/11/2026): no item in Forever's ItemSparse has a socket
+-- and Data/gems.lua is empty, so none of this runs. Kept: it costs nothing
+-- and a socket in a later build would be priced the same way.
 S.SOCKET_MIN_ILVL = 100
 S.SOCKET_EPIC_ILVL = 151
 
@@ -937,9 +950,18 @@ function S.SetBonus(item, weights, slotID)
     return total
 end
 
+-- An item the data could not fully price: a stat type with no documented
+-- meaning (`nx`, ids new in Forever) or stat shares without a budget (`nb`).
+-- It scores nothing rather than the sum of the stats that were read, which
+-- would rank it as if the unknown stat were worth zero (pipeline/build_forever.py).
+function S.Unpriceable(item)
+    return item ~= nil and (item.nx ~= nil or item.nb ~= nil)
+end
+
 function S.Score(item, weights, slotID)
     weights = weights or S._activeWeights
     if not weights then return 0 end
+    if S.Unpriceable(item) then return 0 end
     local cacheable = curCache and weights == S._activeWeights and item.id
                       and not item._live and not item._rolled
     local total
@@ -1038,15 +1060,19 @@ end
 -- the editor keeps showing the weights at the cap. Turned off with
 -- `filters.levelScale = false`.
 local RATING_KEYS = {
-    hit = true, spellhit = true, crit = true, spellcrit = true,
-    haste = true, spellhaste = true, expertise = true,
-    dodge = true, parry = true, block = true, def = true, resil = true,
+    hit = true, crit = true, haste = true, expertise = true,
+    dodge = true, parry = true, block = true, def = true,
 }
 S.RATING_KEYS = RATING_KEYS
 
--- TBC: revisar para Forever (Forever unifies hit and crit for melee, ranged
--- and spells and adds expertise; rating or percentage is NOT confirmed, so no
--- Forever coefficients are coded yet -- FOREVER_RESEARCH.md)
+-- Forever (reviewed 7/11/2026): items carry RATINGS, not percentages -- an
+-- item's crit and hit come out of its budget as 14 and 10 per vanilla 1%,
+-- TBC's level-60 conversion (pipeline/forever_items.py). With the cap at 60
+-- only the first two branches run, and the factor is 1 at the cap. Whether
+-- Forever keeps TBC's curve BELOW 60 (a point of rating worth more at 40) is
+-- NOT confirmed: the oracle reads GetCombatRatingBonus on the client to check
+-- it (pipeline/oracle_forever.py). Until then this is TBC's curve, and the
+-- level scale stays an option (`filters.levelScale`).
 local function ratingCoefficient(level)
     if level <= 10 then return 2 / 52 end
     if level <= 60 then return (level - 8) / 52 end
@@ -1101,9 +1127,14 @@ end
 -- 9% melee and ranged against a level 73 boss (142 rating) and 16% for spells
 -- (202). It does not count talents that lower the cap, so it is conservative:
 -- it never tells you that you have reached it when that is not true.
--- TBC: revisar para Forever (hit is one stat in Forever; the cap in rating or
--- percent is unconfirmed -- FOREVER_RESEARCH.md)
-S.HIT_CAP = { hit = 142, spellhit = 202 }
+-- Forever (reviewed 7/11/2026): hit is ONE stat for melee, ranged and spells,
+-- and the two TBC caps (142 melee, 202 spell at 70) are gone with the level.
+-- The Forever cap is not confirmed (fan sources say 9% melee and 16% spells
+-- against a level 63 boss, which a single stat cannot serve at once; how many
+-- rating points make 1% at 60 is also unread from the client), so no cap is
+-- declared: the option changes nothing until a confirmed value goes here, as
+-- { hit = <rating> }.
+S.HIT_CAP = {}
 
 local function slotStat(slotID, key)
     local link = GetInventoryItemLink and GetInventoryItemLink("player", slotID)
@@ -1319,8 +1350,9 @@ function S.RouteAccess(source, filters)
     local access = source.access or 0
     if source.diff == 2 or (source.diff == 3 and filters
        and filters.dungeonMode == "heroic") then
-        -- TBC: revisar para Forever (heroics opened at the cap; Forever seems
-        -- to have one difficulty per dungeon -- FOREVER_RESEARCH.md, unconfirmed)
+        -- Forever (reviewed 7/11/2026): inert. Only a source carries `diff`,
+        -- the Forever data has none, and Forever seems to have one difficulty
+        -- per dungeon (FOREVER_RESEARCH.md, unconfirmed).
         access = math.max(ns.MAX_LEVEL, access)
     end
     return access
@@ -1436,19 +1468,18 @@ function S.Auctionable(item, id)
 end
 
 -- ilvl cap by level: a declared HEURISTIC, not a fact. It measures what the
--- database itself shows: leveling gear up to 57 has an ilvl of the requirement
--- plus 5 to 9 (97th percentile of each 5-level band); from 58 to 60 the
--- level 100 to 105 Outland rewards arrive, and from 65 to 69 the 115 to 125
--- gear. An item with no source tying it to a level (vendor, chest) is only
--- limited by its requirement, and this bounds it. Off by default: `ilvlCap`.
--- At the level cap (ns.MAX_LEVEL) there is no cap.
--- TBC: revisar para Forever (bands measured on the TBC data)
+-- database itself shows. Measured again on the Forever data (7/11/2026, build
+-- 1.60.1.70862): in every 5-level band of requirement from 6 to 55 the 97th
+-- percentile of (item level - requirement) is 5 and the largest is 22, so the
+-- old TBC margin of 15 still covers leveling gear; what it trims is the odd
+-- requirement-1 item with a level-60 item level (the band 1-5 reaches 61).
+-- Every Forever item in the data has a requirement (items without one are
+-- left out by the pipeline), and level 58-60 gear (up to item level 98) all
+-- requires 56-60, so no Outland-style step is needed any more. Off by
+-- default: `ilvlCap`. At the level cap (ns.MAX_LEVEL) there is no cap.
 function S.IlvlCap(level)
     if not level or level >= ns.MAX_LEVEL then return nil end
-    if level <= 57 then return level + 15 end
-    if level <= 60 then return 105 end
-    if level <= 64 then return 115 end
-    return 128
+    return level + 15
 end
 
 local function overIlvlCap(item, filters, level)
@@ -2124,13 +2155,15 @@ local NORM_MAP = {
     crit_rating="crit", hit_rating="hit", haste_rating="haste",
     crit_melee_rating="crit", hit_melee_rating="hit", haste_melee_rating="haste",
     crit_ranged_rating="crit", hit_ranged_rating="hit", haste_ranged_rating="haste",
-    crit_spell_rating="spellcrit", hit_spell_rating="spellhit", haste_spell_rating="spellhaste",
+    -- Forever has one hit, crit and haste; a client that still reports the
+    -- spell variant is giving the same stat.
+    crit_spell_rating="crit", hit_spell_rating="hit", haste_spell_rating="haste",
     expertise_rating="expertise",
     spell_power="sp", spell_damage_done="sp", spell_healing_done="heal",
     mana_regeneration="mp5",
     defense_skill_rating="def", dodge_rating="dodge", parry_rating="parry",
     block_rating="block", block_value="blockval",
-    resilience_rating="resil", spell_penetration="spen",
+    spell_penetration="spen",
 }
 
 -- GetItemStats reports an empty socket as EMPTY_SOCKET_<COLOR> = how many. Read

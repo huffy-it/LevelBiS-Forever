@@ -487,7 +487,9 @@ function ns.RefreshHitRating()
         return GetCombatRating(melee), GetCombatRating(CR_HIT_SPELL or 8)
     end)
     if ok and type(hit) == "number" and type(spell) == "number" then
-        ns.hitRating = { hit = hit, spellhit = spell }
+        -- Forever has one hit stat; the spell reading is kept only to tell a
+        -- caster's hit apart from a melee one when the client still splits them.
+        ns.hitRating = { hit = math.max(hit, spell) }
     end
 end
 
@@ -798,6 +800,9 @@ function Cmd.weights(rest)
     local line = {}
     for _, k in ipairs(keys) do line[#line+1] = k .. "=" .. tostring(ns.weights[k]) end
     Print("  " .. table.concat(line, "  "))
+    if ns.Weights.PRESETS_PROVISIONAL then
+        Print("  " .. L["The presets are provisional: vanilla-era scales until WoW: Forever weights exist."])
+    end
 end
 
 function Cmd.import(arg)
