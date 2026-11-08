@@ -56,17 +56,10 @@ W.PRESET_REVISION = 6
 W.PRESETS_PROVISIONAL = true
 
 ------------------------------------------------------------------------------
--- Talent-tab order per class (used to auto-detect the active spec at login).
--- Index = TBC talent tab index (1..3); in Forever, provisionally read as the
--- client's specialization index until W.SPEC_IDS is known (see DetectSpec).
--- Forever keeps the classic talent trees, 3 per class (27 specs, several
--- sources in FOREVER_RESEARCH.md), so the count check in DetectSpec holds; the
--- shaman's first tree may be named "Elemental Combat" there.
--- Forever (reviewed 7/11/2026): the tree names stay. The client's
--- specialization is one per CLASS in Forever (ChrSpecialization has nine
--- rows, one per class, named after it -- see W.SPEC_IDS), so neither its
--- index nor its name can tell the tree; DetectSpec then falls back to the
--- first tree and says it guessed. `/lbis spec` sets it by hand.
+-- Talent-tree order per class (used to auto-detect the active spec). The
+-- position is the tree's orderIndex + 1 in C_Traits, checked for all 27 trees
+-- against the client's TalentTab.OrderIndex (build 1.60.1.70862). See
+-- DetectSpec.
 ------------------------------------------------------------------------------
 W.SPEC_TABS = {
     WARRIOR = { "Arms", "Fury", "Protection" },
@@ -412,61 +405,28 @@ function W.SpecsFor(classToken)
     return W.SPEC_LIST[classToken] or {}
 end
 
--- Forever specialization IDs (second return of
--- C_SpecializationInfo.GetSpecializationInfo) -> spec name in SPEC_LIST.
--- Forever's ChrSpecialization table (wago.tools, build 1.60.1.70862) has ONE
--- row per class, named after the class: 1482 Mage, 1484 Druid, 1485 Hunter,
--- 1486 Paladin, 1487 Priest, 1488 Rogue, 1489 Shaman, 1490 Warlock, 1491
--- Warrior. So the ID (1490 was seen on 7/11/2026) names the class, not the
--- talent tree, and cannot fill this map; neither can the name ("Warlock").
--- Reading the tree needs a talent API not yet confirmed on the client: the
--- oracle (8/11/2026, a level 10 warlock) found GetNumSpecializations giving
--- nothing, GetTalentTabInfo absent, and C_ClassTalents and C_Traits present
--- (SPEC.md, "Migración a WoW Forever", fase 2). Only IDs read from the client
--- that name a tree go here.
-W.SPEC_IDS = {}
-
--- Classic tree names the client may report for a spec whose name here differs.
--- "Feral Combat" is the druid's classic tree (Cat by default, as with the tab);
--- "Elemental Combat" is how one source names the shaman's first tree in
--- Forever (FOREVER_RESEARCH.md). English only: localized names are not
--- guessed, a Spanish client falls through to the index.
-W.SPEC_NAME_ALIAS = {
-    ["Feral Combat"] = "Feral (Cat)", ["Feral"] = "Feral (Cat)",
-    ["Elemental Combat"] = "Elemental",
-}
-
--- The spec a client name stands for, among this class's trees, or nil.
-local function specFromName(tabs, name)
-    if type(name) ~= "string" or name == "" then return nil end
-    name = W.SPEC_NAME_ALIAS[name] or name
-    for _, spec in ipairs(tabs) do
-        if spec == name then return spec end
-    end
-    return nil
-end
-
--- Detect the active spec from the client's specialization; falls back to the
--- first spec. Second return: 1 when the client answered, 0 when it did not (no
--- spec chosen yet, or no API), so the caller can tell a guess from a reading.
---
--- In order: the spec ID (W.SPEC_IDS, once read from the client); the spec's
--- English name (what the competitor ForeverBiS reads, per FOREVER_RESEARCH.md);
--- and, PROVISIONAL, the client's spec index read as the old talent tab order
--- (Arms/Fury/Protection...), only when the client lists exactly as many specs
--- as there were tabs. `/lbis spec` overrides it either way.
+-- Detect the active spec from the talent tree with the most points (Forever
+-- keeps the classic trees; ns.API.TalentTreePoints reads them). Second return:
+-- 1 when the points decided, 0 when it is a guess: no points spent yet (below
+-- level 10), a tie, or the client not answering, in which case it is the first
+-- tree. Both Feral specs share one tree, which reads as Cat, as the tab always
+-- did; `/lbis spec` sets Bear, or any other spec, by hand.
 function W.DetectSpec(classToken)
     local tabs = W.SPEC_TABS[classToken]
     if not tabs then return nil, 0 end
-    local index, id, name = ns.API.ActiveSpec()
-    if not index then return tabs[1], 0 end
-    local known = id and W.SPEC_IDS[id]
-    if known then return known, 1 end
-    local named = specFromName(tabs, name)
-    if named then return named, 1 end
-    local count = ns.API.NumSpecs()
-    if (count == nil or count == #tabs) and tabs[index] then return tabs[index], 1 end
-    return tabs[1], 0
+    local points = ns.API.TalentTreePoints()
+    if not points then return tabs[1], 0 end
+    local best, top, tied = nil, 0, false
+    for tree = 1, #tabs do
+        local spent = points[tree] or 0
+        if spent > top then
+            best, top, tied = tree, spent, false
+        elseif spent == top and spent > 0 then
+            tied = true
+        end
+    end
+    if not best or tied then return tabs[1], 0 end
+    return tabs[best], 1
 end
 
 -- Active talent group: 1 or 2 (Forever has dual specialization from level 40).

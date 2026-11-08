@@ -143,22 +143,56 @@ end
 ------------------------------------------------------------------------------
 -- Specialization
 ------------------------------------------------------------------------------
--- index (1..n), specID, name of the active specialization; nil when the
--- client has none chosen yet (a fresh character) or no such API.
-function API.ActiveSpec()
-    local get = fn("C_SpecializationInfo", "GetSpecialization")
-    local info = fn("C_SpecializationInfo", "GetSpecializationInfo")
-    if not get then return nil end
-    local index = tonumber(get())
-    if not index or index < 1 then return nil end
-    local id, name
-    if info then id, name = info(index) end
-    return index, tonumber(id), name
+-- Forever's C_SpecializationInfo names the class, not the talent tree (one
+-- ChrSpecialization row per class), so the tree comes from where the points
+-- are: the active group's combat config in C_Traits. Confirmed on the client
+-- on 8/11/2026 (a warlock with 2 points in Affliction read 2 / 0 / 0).
+--
+-- Returns { [tree] = points }, tree being orderIndex + 1, which equals the
+-- position in W.SPEC_TABS for the 27 trees (TalentTab.OrderIndex, build
+-- 1.60.1.70862). orderIndex does not depend on the client's language; the
+-- groups' displayName does, and is not read. nil when the client has no such
+-- API or the config is not available yet (right after login; it arrives with
+-- TRAIT_CONFIG_LIST_UPDATED).
+local function readTreePoints(configFor, groupNow, configInfo, groupsOf, nodesOf, nodeInfo)
+    local configID = configFor(groupNow())
+    if not configID then return nil end
+    local config = configInfo(configID)
+    local treeID = config and config.treeIDs and config.treeIDs[1]
+    if not treeID then return nil end
+    local groups = groupsOf(treeID)
+    if not groups or #groups == 0 then return nil end
+    local treeOf, points = {}, {}
+    for _, group in ipairs(groups) do
+        local tree = group.orderIndex + 1
+        treeOf[group.groupID] = tree
+        points[tree] = 0
+    end
+    for _, nodeID in ipairs(nodesOf(treeID) or {}) do
+        local node = nodeInfo(configID, nodeID)
+        local ranks = node and node.ranksPurchased or 0
+        if ranks > 0 then
+            for _, groupID in ipairs(node.groupIDs or {}) do
+                local tree = treeOf[groupID]
+                if tree then points[tree] = points[tree] + ranks end
+            end
+        end
+    end
+    return points
 end
 
-function API.NumSpecs()
-    local f = fn("C_SpecializationInfo", "GetNumSpecializations")
-    return f and tonumber(f()) or nil
+function API.TalentTreePoints()
+    local configFor = fn("C_SpecializationInfo", "GetCombatConfigIDForSpecGroup")
+    local groupNow = fn("C_SpecializationInfo", "GetActiveSpecGroup")
+    local configInfo = fn("C_Traits", "GetConfigInfo")
+    local groupsOf = fn("C_Traits", "GetGroupDisplayInfoByTreeID")
+    local nodesOf = fn("C_Traits", "GetTreeNodes")
+    local nodeInfo = fn("C_Traits", "GetNodeInfo")
+    if not (configFor and groupNow and configInfo and groupsOf and nodesOf and nodeInfo) then
+        return nil
+    end
+    local ok, points = pcall(readTreePoints, configFor, groupNow, configInfo, groupsOf, nodesOf, nodeInfo)
+    return ok and points or nil
 end
 
 -- Active talent group (dual specialization): 1 or 2. Not confirmed which of

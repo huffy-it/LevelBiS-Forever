@@ -1398,18 +1398,20 @@ ns.API.RegisterEvents(f, "SKILL_LINES_CHANGED")
 f:RegisterEvent("UNIT_INVENTORY_CHANGED")
 f:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 f:RegisterEvent("UNIT_ATTACK_POWER")
--- Specialization and talents: choosing a spec, spending points, the data
--- arriving after login, and switching the dual-spec group. The modern client
--- raises on an event it does not know, and which of these Forever fires is not
--- confirmed, so each one is tried on its own (ns.API.RegisterEvents).
+-- Specialization and talents: spending points, the talent configs arriving
+-- after login (TRAIT_CONFIG_LIST_UPDATED) and switching the dual-spec group.
+-- The list follows Blizzard's own talent frame in Forever (wow-ui-source,
+-- branch `forever`). The modern client raises on an event it does not know,
+-- so each one is tried on its own (ns.API.RegisterEvents).
 local SPEC_EVENTS = {
     PLAYER_SPECIALIZATION_CHANGED = true, ACTIVE_PLAYER_SPECIALIZATION_CHANGED = true,
     ACTIVE_TALENT_GROUP_CHANGED = true, PLAYER_TALENT_UPDATE = true,
     CHARACTER_POINTS_CHANGED = true, TRAIT_CONFIG_UPDATED = true,
+    TRAIT_CONFIG_LIST_UPDATED = true,
 }
 ns.API.RegisterEvents(f, "PLAYER_SPECIALIZATION_CHANGED", "ACTIVE_PLAYER_SPECIALIZATION_CHANGED",
     "ACTIVE_TALENT_GROUP_CHANGED", "PLAYER_TALENT_UPDATE", "CHARACTER_POINTS_CHANGED",
-    "TRAIT_CONFIG_UPDATED")
+    "TRAIT_CONFIG_UPDATED", "TRAIT_CONFIG_LIST_UPDATED")
 f:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON then
         InitSV()
